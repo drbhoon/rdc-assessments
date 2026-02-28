@@ -1,0 +1,191 @@
+import { useState, useCallback } from 'react'
+import { useDropzone } from 'react-dropzone'
+import { FileUp, Loader2, FileText, FileCheck2, AlertCircle, RefreshCw } from 'lucide-react'
+import { extractTextFromFile } from './utils/fileParser'
+import { evaluateReport } from './utils/aiService'
+
+function App() {
+  const [appState, setAppState] = useState('upload') // upload, parsing, ready_for_api, api, results
+  const [file, setFile] = useState(null)
+  const [reportText, setReportText] = useState('')
+  const [evaluationResult, setEvaluationResult] = useState(null)
+  const [error, setError] = useState(null)
+
+  const onDrop = useCallback(async (acceptedFiles) => {
+    setError(null)
+    const selectedFile = acceptedFiles[0]
+    if (!selectedFile) return
+
+    setFile(selectedFile)
+    setAppState('parsing')
+
+    try {
+      const text = await extractTextFromFile(selectedFile)
+      if (!text || text.trim().length === 0) {
+        throw new Error("No readable text found in the document.")
+      }
+      setReportText(text)
+      setAppState('ready_for_api')
+    } catch (err) {
+      setError(err.message)
+      setAppState('upload')
+    }
+  }, [])
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'application/pdf': ['.pdf'],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+      'text/plain': ['.txt']
+    },
+    maxFiles: 1
+  })
+
+  const handleEvaluate = async () => {
+    setAppState('api')
+    setError(null)
+    try {
+      const result = await evaluateReport(reportText)
+      setEvaluationResult(result)
+      setAppState('results')
+    } catch (err) {
+      setError(err.message)
+      setAppState('ready_for_api')
+    }
+  }
+
+  const handleReset = () => {
+    setFile(null)
+    setReportText('')
+    setEvaluationResult(null)
+    setError(null)
+    setAppState('upload')
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-900 text-slate-100 font-sans selection:bg-brand-500/30">
+      <header className="border-b border-slate-800 bg-slate-950/50 backdrop-blur-md sticky top-0 z-10 px-6 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-brand-500/20">
+            <span className="font-bold text-white text-xl">R</span>
+          </div>
+          <div>
+            <h1 className="font-semibold text-lg tracking-tight text-white leading-tight">RDC Assessments</h1>
+            <p className="text-xs text-slate-400 font-medium">Trainee Report AI Evaluation</p>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-4xl mx-auto p-6 md:p-8 w-full mt-4">
+        {appState === 'upload' && (
+          <div
+            {...getRootProps()}
+            className={`cursor-pointer text-center p-12 rounded-2xl border-2 border-dashed transition-all w-full max-w-3xl mx-auto
+              ${isDragActive
+                ? 'border-brand-500 bg-brand-500/10 scale-[1.02]'
+                : 'border-slate-700 hover:border-slate-500 bg-slate-800/30 hover:bg-slate-800/80'}`}
+          >
+            <input {...getInputProps()} />
+            <div className="w-16 h-16 rounded-full bg-slate-700/50 flex items-center justify-center mx-auto mb-4 text-brand-400">
+              <FileUp size={32} />
+            </div>
+            <h2 className="text-2xl font-semibold mb-2 text-white">Upload Monthly Report</h2>
+            <p className="text-slate-400 mb-6 max-w-sm mx-auto">Drag & drop a PDF, DOCX, or TXT file here, or click to browse.</p>
+            <button className="bg-brand-600 hover:bg-brand-500 text-white px-6 py-3 rounded-xl font-medium transition-all shadow-lg shadow-brand-500/20 pointer-events-none">
+              Select File
+            </button>
+            {error && (
+              <div className="mt-6 flex justify-center items-center gap-2 text-red-400 bg-red-400/10 py-2 px-4 rounded-lg">
+                <AlertCircle size={18} />
+                <span className="text-sm">{error}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {appState === 'parsing' && (
+          <div className="text-center bg-slate-800/50 p-16 rounded-2xl border border-slate-700/50 flex flex-col items-center justify-center min-h-[400px] max-w-3xl mx-auto">
+            <Loader2 className="animate-spin text-brand-500 mb-6" size={48} />
+            <h2 className="text-xl font-semibold mb-2 text-white">Extracting text...</h2>
+            <p className="text-slate-400">Reading contents of {file?.name}</p>
+          </div>
+        )}
+
+        {appState === 'ready_for_api' && (
+          <div className="bg-slate-800/80 p-8 rounded-2xl border border-slate-700/50 max-w-3xl mx-auto">
+            <div className="flex items-center gap-4 mb-6 pb-6 border-b border-slate-700">
+              <div className="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                <FileCheck2 size={24} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h2 className="text-xl font-semibold text-white truncate">{file?.name}</h2>
+                <p className="text-slate-400 text-sm">Successfully extracted {reportText.length.toLocaleString()} characters</p>
+              </div>
+              <button
+                onClick={handleReset}
+                className="text-slate-400 hover:text-white px-3 py-2 text-sm transition-colors"
+              >
+                Change File
+              </button>
+            </div>
+
+            <div className="bg-slate-900 rounded-xl p-4 mb-8 h-48 overflow-y-auto border border-slate-700/50 font-mono text-sm text-slate-300 whitespace-pre-wrap">
+              {reportText}
+            </div>
+
+            {error && (
+              <div className="mb-6 flex justify-center items-center gap-2 text-red-400 bg-red-400/10 py-3 px-4 rounded-lg">
+                <AlertCircle size={20} />
+                <span className="text-sm font-medium">{error}</span>
+              </div>
+            )}
+
+            <div className="flex justify-end relative">
+              <div className="absolute inset-0 bg-brand-500/20 blur-2xl rounded-full"></div>
+              <button
+                onClick={handleEvaluate}
+                className="relative bg-brand-600 hover:bg-brand-500 text-white px-8 py-4 rounded-xl font-semibold text-lg transition-all shadow-lg shadow-brand-500/20 active:scale-95 flex items-center gap-3 w-full sm:w-auto justify-center"
+              >
+                <span>Evaluate Report with AI</span>
+                <span className="text-2xl leading-none">✨</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {appState === 'api' && (
+          <div className="text-center bg-slate-800/50 p-16 rounded-2xl border border-slate-700/50 flex flex-col items-center justify-center min-h-[400px] max-w-3xl mx-auto">
+            <Loader2 className="animate-spin text-brand-500 mb-6" size={48} />
+            <h2 className="text-xl font-semibold mb-2 text-white">Evaluating with Gemini AI...</h2>
+            <p className="text-slate-400 max-w-sm mx-auto">Analyzing the report against the 6 SARTAJ parameters. This usually takes 5-15 seconds.</p>
+          </div>
+        )}
+
+        {appState === 'results' && (
+          <div className="bg-slate-800/80 p-6 md:p-8 rounded-2xl border border-slate-700/50 shadow-2xl">
+            <div className="flex items-center justify-between mb-8 pb-6 border-b border-slate-700/50">
+              <div>
+                <h2 className="text-2xl font-bold text-white mb-1">Assessment Complete</h2>
+                <p className="text-slate-400">Evaluated document: <span className="text-slate-300 font-medium">{file?.name}</span></p>
+              </div>
+              <button
+                onClick={handleReset}
+                className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+              >
+                <RefreshCw size={18} />
+                <span>Start Over</span>
+              </button>
+            </div>
+
+            <div className="bg-slate-900/50 p-6 rounded-xl border border-slate-700/50 whitespace-pre-wrap font-mono text-sm leading-relaxed text-slate-300 overflow-x-auto">
+              {evaluationResult}
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  )
+}
+
+export default App
