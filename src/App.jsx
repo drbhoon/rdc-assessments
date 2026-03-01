@@ -65,15 +65,15 @@ function App() {
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 font-sans selection:bg-brand-500/30">
-      <header className="border-b border-slate-800 bg-slate-950/50 backdrop-blur-md sticky top-0 z-10 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-brand-500/20">
-            <span className="font-bold text-white text-xl">R</span>
-          </div>
-          <div>
-            <h1 className="font-semibold text-lg tracking-tight text-white leading-tight">RDC Assessments</h1>
-            <p className="text-xs text-slate-400 font-medium">Trainee Report AI Evaluation</p>
-          </div>
+      <header className="border-b border-slate-800 bg-slate-950/50 backdrop-blur-md sticky top-0 z-10 px-6 py-6 flex flex-col items-center justify-center text-center">
+        <div className="flex flex-col items-center gap-4 mb-4">
+          <img src="/rdc_logo.png" alt="RDC Logo" className="h-20 object-contain drop-shadow-md" />
+          <h1 className="font-extrabold text-4xl tracking-tight text-white uppercase mt-2">RDC ASSESSMENTS</h1>
+        </div>
+        <div className="max-w-2xl">
+          <p className="text-sm md:text-base text-slate-400 font-medium leading-relaxed">
+            This Application Evaluates RDC Trainee Monthly Reports based on Skills developed by RDC Team. It uses AI to evaluate using the Skill.
+          </p>
         </div>
       </header>
 
