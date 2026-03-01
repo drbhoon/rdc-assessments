@@ -1,8 +1,9 @@
 import { useState, useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { FileUp, Loader2, FileText, FileCheck2, AlertCircle, RefreshCw } from 'lucide-react'
+import { FileUp, Loader2, FileText, FileCheck2, AlertCircle, RefreshCw, Download } from 'lucide-react'
 import { extractTextFromFile } from './utils/fileParser'
 import { evaluateReport } from './utils/aiService'
+import jsPDF from 'jspdf'
 
 function App() {
   const [appState, setAppState] = useState('upload') // upload, parsing, ready_for_api, api, results
@@ -10,6 +11,89 @@ function App() {
   const [reportText, setReportText] = useState('')
   const [evaluationResult, setEvaluationResult] = useState(null)
   const [error, setError] = useState(null)
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
+
+  const generatePDF = async () => {
+    setIsGeneratingPdf(true)
+    try {
+      const doc = new jsPDF()
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const margin = 20
+
+      // Add RDC Logo
+      const img = new Image()
+      img.src = '/rdc_logo.png' // Matches our public logo
+
+      // Wait for image to load before adding to PDF
+      await new Promise((resolve) => {
+        img.onload = () => {
+          // Add logo centered at top (scaling down keeping aspect ratio)
+          const imgWidth = 50
+          const imgHeight = (img.height * imgWidth) / img.width
+          doc.addImage(img, 'PNG', (pageWidth - imgWidth) / 2, 10, imgWidth, imgHeight)
+
+          // Add Title
+          doc.setFont('helvetica', 'bold')
+          doc.setFontSize(16)
+          doc.text('Trainee Monthly Report Assessment', pageWidth / 2, imgHeight + 25, { align: 'center' })
+
+          // Add Date
+          doc.setFont('helvetica', 'normal')
+          doc.setFontSize(10)
+          doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth / 2, imgHeight + 32, { align: 'center' })
+
+          // Add dividing line
+          doc.setLineWidth(0.5)
+          doc.line(margin, imgHeight + 40, pageWidth - margin, imgHeight + 40)
+
+          // Add Report Content
+          doc.setFont('helvetica', 'normal')
+          doc.setFontSize(10)
+
+          // Split text to fit within page width
+          const splitText = doc.splitTextToSize(evaluationResult, pageWidth - (margin * 2))
+
+          // Determine how many lines fit on a page
+          const linesPerPage = 45
+          let cursorY = imgHeight + 50
+
+          for (let i = 0; i < splitText.length; i++) {
+            if (i > 0 && i % linesPerPage === 0) {
+              doc.addPage()
+              cursorY = margin // Reset Y for new page
+            }
+            doc.text(splitText[i], margin, cursorY)
+            cursorY += 6 // Line height
+          }
+
+          // Save the PDF
+          const cleanFilename = file?.name ? file.name.replace(/\.[^/.]+$/, "") : "Trainee"
+          doc.save(`RDC_Assessment_${cleanFilename}.pdf`)
+          resolve()
+        }
+
+        // Error handling fallback
+        img.onerror = () => {
+          // If logo fails to load, just generate text
+          doc.setFont('helvetica', 'bold')
+          doc.setFontSize(20)
+          doc.text('RDC ASSESSMENTS', pageWidth / 2, 20, { align: 'center' })
+
+          const splitText = doc.splitTextToSize(evaluationResult, pageWidth - (margin * 2))
+          doc.setFont('helvetica', 'normal')
+          doc.setFontSize(10)
+          doc.text(splitText, margin, 40)
+          doc.save('RDC_Assessment.pdf')
+          resolve()
+        }
+      })
+    } catch (err) {
+      console.error("PDF generation failed:", err)
+      alert("Failed to generate PDF. Please try again.")
+    } finally {
+      setIsGeneratingPdf(false)
+    }
+  }
 
   const onDrop = useCallback(async (acceptedFiles) => {
     setError(null)
@@ -169,13 +253,23 @@ function App() {
                 <h2 className="text-2xl font-bold text-white mb-1">Assessment Complete</h2>
                 <p className="text-slate-400">Evaluated document: <span className="text-slate-300 font-medium">{file?.name}</span></p>
               </div>
-              <button
-                onClick={handleReset}
-                className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-              >
-                <RefreshCw size={18} />
-                <span>Start Over</span>
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={generatePDF}
+                  disabled={isGeneratingPdf}
+                  className="flex items-center gap-2 bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isGeneratingPdf ? <Loader2 className="animate-spin" size={18} /> : <Download size={18} />}
+                  <span>{isGeneratingPdf ? 'Generating...' : 'Download PDF'}</span>
+                </button>
+                <button
+                  onClick={handleReset}
+                  className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                >
+                  <RefreshCw size={18} />
+                  <span>Start Over</span>
+                </button>
+              </div>
             </div>
 
             <div className="bg-slate-900/50 p-6 rounded-xl border border-slate-700/50 whitespace-pre-wrap font-mono text-sm leading-relaxed text-slate-300 overflow-x-auto">
