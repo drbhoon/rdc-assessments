@@ -12,6 +12,7 @@ function App() {
   const [evaluationResult, setEvaluationResult] = useState(null)
   const [error, setError] = useState(null)
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
+  const [assessmentType, setAssessmentType] = useState('ops') // ops, sales
 
   const generatePDF = async () => {
     setIsGeneratingPdf(true)
@@ -130,7 +131,7 @@ function App() {
     setAppState('api')
     setError(null)
     try {
-      const result = await evaluateReport(reportText)
+      const result = await evaluateReport(reportText, assessmentType)
       setEvaluationResult(result)
       setAppState('results')
     } catch (err) {
@@ -154,11 +155,29 @@ function App() {
           <img src="/rdc_logo.png" alt="RDC Logo" className="h-20 object-contain drop-shadow-md" />
           <h1 className="font-extrabold text-4xl tracking-tight text-white uppercase mt-2">RDC ASSESSMENTS</h1>
         </div>
-        <div className="max-w-2xl">
+        <div className="max-w-2xl text-center">
           <p className="text-sm md:text-base text-slate-400 font-medium leading-relaxed">
             This Application Evaluates RDC Trainee Monthly Reports based on Skills developed by RDC Team. It uses AI to evaluate using the Skill.
           </p>
         </div>
+
+        {/* Assessment Type Tabs */}
+        {appState !== 'results' && (
+          <div className="flex items-center justify-center mt-6 w-full gap-2 p-1 bg-slate-900 rounded-lg max-w-sm border border-slate-800">
+            <button
+              onClick={() => setAssessmentType('ops')}
+              className={`flex-1 py-2 px-4 rounded font-medium text-sm transition-all duration-200 ${assessmentType === 'ops' ? 'bg-brand-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'}`}
+            >
+              Operations Trainee
+            </button>
+            <button
+              onClick={() => setAssessmentType('sales')}
+              className={`flex-1 py-2 px-4 rounded font-medium text-sm transition-all duration-200 ${assessmentType === 'sales' ? 'bg-brand-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'}`}
+            >
+              Sales Trainee
+            </button>
+          </div>
+        )}
       </header>
 
       <main className="max-w-4xl mx-auto p-6 md:p-8 w-full mt-4">
@@ -231,7 +250,7 @@ function App() {
                 onClick={handleEvaluate}
                 className="relative bg-brand-600 hover:bg-brand-500 text-white px-8 py-4 rounded-xl font-semibold text-lg transition-all shadow-lg shadow-brand-500/20 active:scale-95 flex items-center gap-3 w-full sm:w-auto justify-center"
               >
-                <span>Evaluate Report with AI</span>
+                <span>Evaluate {assessmentType === 'ops' ? 'Operations' : 'Sales'} Report</span>
                 <span className="text-2xl leading-none">✨</span>
               </button>
             </div>
@@ -242,7 +261,7 @@ function App() {
           <div className="text-center bg-slate-800/50 p-16 rounded-2xl border border-slate-700/50 flex flex-col items-center justify-center min-h-[400px] max-w-3xl mx-auto">
             <Loader2 className="animate-spin text-brand-500 mb-6" size={48} />
             <h2 className="text-xl font-semibold mb-2 text-white">Evaluating with Gemini AI...</h2>
-            <p className="text-slate-400 max-w-sm mx-auto">Analyzing the report against the 6 SARTAJ parameters. This usually takes 5-15 seconds.</p>
+              <p className="text-slate-400 max-w-sm mx-auto">Analyzing the report against the RDC skill parameters. This usually takes 5-15 seconds.</p>
           </div>
         )}
 
