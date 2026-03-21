@@ -14,6 +14,11 @@ function AdminDashboard() {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
   const [assessmentType, setAssessmentType] = useState(null) // null, ops, sales, recruitment, sales_recruitment
   
+  // Authentication State
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [loginError, setLoginError] = useState(false);
+  
   // V5 Remote Recruitment States
   const [interviews, setInterviews] = useState([]);
   const [fetchingRemote, setFetchingRemote] = useState(false);
@@ -65,17 +70,16 @@ function AdminDashboard() {
       const margin = 20
       const imgHeight = 0 // Removed to fix CORS / Async filename bug
 
+      let reportTitle = 'AI-Powered Evaluation System';
+      if (assessmentType === 'sales_recruitment') reportTitle = 'Sales Recruitment Report';
+      else if (assessmentType === 'recruitment') reportTitle = 'Fresher Recruitment Report';
+      else if (assessmentType === 'sales') reportTitle = 'Sales Trainee Report';
+      else if (assessmentType === 'ops') reportTitle = 'Operations Trainee Report';
+
       // Add Title
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(18)
-      doc.text(
-        (assessmentType === 'recruitment' || assessmentType === 'sales_recruitment')
-          ? 'AI-Powered Recruitment and Assessment System' 
-          : 'AI-Powered Evaluation System for Field Trainees', 
-        pageWidth / 2, 
-        25, 
-        { align: 'center' }
-      )
+      doc.text(reportTitle, pageWidth / 2, 25, { align: 'center' })
 
       // Add Date
       doc.setFont('helvetica', 'normal')
@@ -123,16 +127,6 @@ function AdminDashboard() {
       
       const fileName = `RDC_Assessment_${cleanFilename}.pdf`;
       doc.save(fileName);
-
-      // Fallback: Open the PDF natively in the browser
-      // This bypasses user download managers that intercept blobs and drop filenames.
-      try {
-        const pdfBlob = doc.output('blob');
-        const pdfUrl = URL.createObjectURL(pdfBlob);
-        window.open(pdfUrl, '_blank');
-      } catch (e) {
-        console.warn("Could not open PDF in new tab", e);
-      }
 
     } catch (err) {
       console.error("PDF generation failed:", err)
@@ -196,6 +190,48 @@ function AdminDashboard() {
     setEvaluationResult(null)
     setError(null)
     setAppState('upload')
+  }
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+    const expectedPassword = import.meta.env.VITE_ADMIN_PASSWORD || 'admin@rdc2026';
+    if (passwordInput === expectedPassword) {
+        setIsAuthenticated(true);
+        setLoginError(false);
+    } else {
+        setLoginError('Invalid password. Please try again.');
+    }
+  };
+
+  if (!isAuthenticated) {
+      return (
+          <div className="min-h-screen bg-slate-900 text-slate-100 font-sans flex items-center justify-center p-6">
+              <div className="bg-slate-800/80 p-8 rounded-2xl border border-slate-700/50 shadow-2xl max-w-sm w-full text-center">
+                  <div className="w-16 h-16 bg-brand-500/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-brand-500/20">
+                      <User className="text-brand-400" size={32} />
+                  </div>
+                  <h2 className="text-2xl font-bold text-white mb-2">Admin Portal</h2>
+                  <p className="text-slate-400 mb-8 text-sm">Please log in to manage candidates and access AI evaluation reports.</p>
+                  
+                  <form onSubmit={handleLogin} className="space-y-4">
+                      <input 
+                          type="password" 
+                          placeholder="Admin Password"
+                          value={passwordInput}
+                          onChange={(e) => setPasswordInput(e.target.value)}
+                          className="w-full bg-slate-900 border border-slate-700 rounded-lg py-3 px-4 text-white placeholder:text-slate-600 focus:outline-none focus:border-brand-500"
+                      />
+                      {loginError && <p className="text-red-400 text-sm text-center">{loginError}</p>}
+                      <button 
+                          type="submit"
+                          className="w-full bg-brand-600 hover:bg-brand-500 text-white font-semibold py-3 rounded-lg transition-colors"
+                      >
+                          Secure Login
+                      </button>
+                  </form>
+              </div>
+          </div>
+      );
   }
 
   return (
