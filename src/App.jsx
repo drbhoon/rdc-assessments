@@ -1,9 +1,10 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { FileUp, Loader2, FileText, FileCheck2, AlertCircle, RefreshCw, Download } from 'lucide-react'
+import { FileUp, Loader2, FileText, FileCheck2, AlertCircle, RefreshCw, Download, CheckCircle2, ChevronRight, Check, User } from 'lucide-react'
 import { extractTextFromFile } from './utils/fileParser'
 import { evaluateReport } from './utils/aiService'
 import jsPDF from 'jspdf'
+import RecruitmentTab from './components/RecruitmentTab'
 
 function App() {
   const [appState, setAppState] = useState('upload') // upload, parsing, ready_for_api, api, results
@@ -12,7 +13,7 @@ function App() {
   const [evaluationResult, setEvaluationResult] = useState(null)
   const [error, setError] = useState(null)
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
-  const [assessmentType, setAssessmentType] = useState('ops') // ops, sales
+  const [assessmentType, setAssessmentType] = useState(null) // null, ops, sales, recruitment, sales_recruitment
 
   const generatePDF = async () => {
     setIsGeneratingPdf(true)
@@ -20,74 +21,77 @@ function App() {
       const doc = new jsPDF()
       const pageWidth = doc.internal.pageSize.getWidth()
       const margin = 20
+      const imgHeight = 0 // Removed to fix CORS / Async filename bug
 
-      // Add RDC Logo
-      const img = new Image()
-      img.src = '/rdc_logo.png' // Matches our public logo
+      // Add Title
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(18)
+      doc.text(
+        (assessmentType === 'recruitment' || assessmentType === 'sales_recruitment')
+          ? 'AI-Powered Recruitment and Assessment System' 
+          : 'AI-Powered Evaluation System for Field Trainees', 
+        pageWidth / 2, 
+        25, 
+        { align: 'center' }
+      )
 
-      // Wait for image to load before adding to PDF
-      await new Promise((resolve) => {
-        img.onload = () => {
-          // Add logo centered at top (scaling down keeping aspect ratio)
-          const imgWidth = 50
-          const imgHeight = (img.height * imgWidth) / img.width
-          doc.addImage(img, 'PNG', (pageWidth - imgWidth) / 2, 10, imgWidth, imgHeight)
+      // Add Date
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(10)
+      doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth / 2, 32, { align: 'center' })
 
-          // Add Title
-          doc.setFont('helvetica', 'bold')
-          doc.setFontSize(16)
-          doc.text('Trainee Monthly Report Assessment', pageWidth / 2, imgHeight + 25, { align: 'center' })
+      // Add dividing line
+      doc.setLineWidth(0.5)
+      doc.line(margin, 40, pageWidth - margin, 40)
 
-          // Add Date
-          doc.setFont('helvetica', 'normal')
-          doc.setFontSize(10)
-          doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth / 2, imgHeight + 32, { align: 'center' })
+      // Add Report Content
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(10)
 
-          // Add dividing line
-          doc.setLineWidth(0.5)
-          doc.line(margin, imgHeight + 40, pageWidth - margin, imgHeight + 40)
+      // Split text to fit within page width, stripping emojis that crash standard jsPDF helvetica
+      let safeText = evaluationResult ? evaluationResult.replace(/[^\x00-\x7F]/g, "") : "";
+      
+      if (reportText && (assessmentType === 'recruitment' || assessmentType === 'sales_recruitment')) {
+          const safeTranscript = reportText.replace(/[^\x00-\x7F]/g, "");
+          safeText += "\n\n=== ORIGINAL INTERVIEW TRANSCRIPT ===\n\n" + safeTranscript;
+      }
 
-          // Add Report Content
-          doc.setFont('helvetica', 'normal')
-          doc.setFontSize(10)
+      const splitText = doc.splitTextToSize(safeText, pageWidth - (margin * 2))
 
-          // Split text to fit within page width
-          const splitText = doc.splitTextToSize(evaluationResult, pageWidth - (margin * 2))
+      // Determine how many lines fit on a page
+      const linesPerPage = 45
+      let cursorY = 50
 
-          // Determine how many lines fit on a page
-          const linesPerPage = 45
-          let cursorY = imgHeight + 50
-
-          for (let i = 0; i < splitText.length; i++) {
-            if (i > 0 && i % linesPerPage === 0) {
-              doc.addPage()
-              cursorY = margin // Reset Y for new page
-            }
-            doc.text(splitText[i], margin, cursorY)
-            cursorY += 6 // Line height
-          }
-
-          // Save the PDF
-          const cleanFilename = file?.name ? file.name.replace(/\.[^/.]+$/, "") : "Trainee"
-          doc.save(`RDC_Assessment_${cleanFilename}.pdf`)
-          resolve()
+      for (let i = 0; i < splitText.length; i++) {
+        if (i > 0 && i % linesPerPage === 0) {
+          doc.addPage()
+          cursorY = margin // Reset Y for new page
         }
+        doc.text(splitText[i], margin, cursorY)
+        cursorY += 6 // Line height
+      }
 
-        // Error handling fallback
-        img.onerror = () => {
-          // If logo fails to load, just generate text
-          doc.setFont('helvetica', 'bold')
-          doc.setFontSize(20)
-          doc.text('RDC ASSESSMENTS', pageWidth / 2, 20, { align: 'center' })
+      // Save the PDF
+      let cleanFilename = "Candidate";
+      if (file?.name) {
+          cleanFilename = file.name.replace(/\.[^/.]+$/, "");
+      } else if (assessmentType === 'recruitment' || assessmentType === 'sales_recruitment') {
+          cleanFilename = "Interview_Transcript";
+      }
+      
+      const fileName = `RDC_Assessment_${cleanFilename}.pdf`;
+      doc.save(fileName);
 
-          const splitText = doc.splitTextToSize(evaluationResult, pageWidth - (margin * 2))
-          doc.setFont('helvetica', 'normal')
-          doc.setFontSize(10)
-          doc.text(splitText, margin, 40)
-          doc.save('RDC_Assessment.pdf')
-          resolve()
-        }
-      })
+      // Fallback: Open the PDF natively in the browser
+      // This bypasses user download managers that intercept blobs and drop filenames.
+      try {
+        const pdfBlob = doc.output('blob');
+        const pdfUrl = URL.createObjectURL(pdfBlob);
+        window.open(pdfUrl, '_blank');
+      } catch (e) {
+        console.warn("Could not open PDF in new tab", e);
+      }
+
     } catch (err) {
       console.error("PDF generation failed:", err)
       alert("Failed to generate PDF. Please try again.")
@@ -127,16 +131,20 @@ function App() {
     maxFiles: 1
   })
 
-  const handleEvaluate = async () => {
+  const handleEvaluate = async (passedText, passedType) => {
+    const textToEvaluate = passedText || reportText;
+    const typeToEvaluate = passedType || assessmentType;
+    
     setAppState('api')
     setError(null)
     try {
-      const result = await evaluateReport(reportText, assessmentType)
+      const result = await evaluateReport(textToEvaluate, typeToEvaluate)
       setEvaluationResult(result)
       setAppState('results')
     } catch (err) {
       setError(err.message)
-      setAppState('ready_for_api')
+      // Only go back to ready_for_api if we have a file, otherwise back to upload
+      setAppState(file ? 'ready_for_api' : 'upload')
     }
   }
 
@@ -153,35 +161,55 @@ function App() {
       <header className="border-b border-slate-800 bg-slate-950/50 backdrop-blur-md sticky top-0 z-10 px-6 py-6 flex flex-col items-center justify-center text-center">
         <div className="flex flex-col items-center gap-4 mb-4">
           <img src="/rdc_logo.png" alt="RDC Logo" className="h-20 object-contain drop-shadow-md" />
-          <h1 className="font-extrabold text-4xl tracking-tight text-white uppercase mt-2">RDC ASSESSMENTS</h1>
+          <h1 className="font-extrabold text-2xl md:text-4xl tracking-tight text-white uppercase mt-2">RDC ASSESSMENTS & RECRUITMENTS</h1>
         </div>
         <div className="max-w-2xl text-center">
           <p className="text-sm md:text-base text-slate-400 font-medium leading-relaxed">
-            This Application Evaluates RDC Trainee Monthly Reports based on Skills developed by RDC Team. It uses AI to evaluate using the Skill.
+            AI-Powered Recruitment and Assessment System
           </p>
         </div>
 
         {/* Assessment Type Tabs */}
         {appState !== 'results' && (
-          <div className="flex items-center justify-center mt-6 w-full gap-2 p-1 bg-slate-900 rounded-lg max-w-sm border border-slate-800">
+          <div className="flex items-center mt-6 w-full gap-2 p-1.5 bg-slate-900 rounded-xl max-w-4xl mx-auto border border-slate-800 overflow-x-auto hide-scrollbar">
             <button
-              onClick={() => setAssessmentType('ops')}
-              className={`flex-1 py-2 px-4 rounded font-medium text-sm transition-all duration-200 ${assessmentType === 'ops' ? 'bg-brand-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'}`}
+              onClick={() => { setAssessmentType('ops'); handleReset(); }}
+              className={`flex-1 min-w-[150px] py-3 px-4 rounded-lg font-medium text-sm transition-all duration-200 whitespace-nowrap ${assessmentType === 'ops' ? 'bg-brand-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'}`}
             >
               Operations Trainee
             </button>
             <button
-              onClick={() => setAssessmentType('sales')}
-              className={`flex-1 py-2 px-4 rounded font-medium text-sm transition-all duration-200 ${assessmentType === 'sales' ? 'bg-brand-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'}`}
+              onClick={() => { setAssessmentType('sales'); handleReset(); }}
+              className={`flex-1 min-w-[150px] py-3 px-4 rounded-lg font-medium text-sm transition-all duration-200 whitespace-nowrap ${assessmentType === 'sales' ? 'bg-brand-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'}`}
             >
               Sales Trainee
+            </button>
+            <button
+              onClick={() => { setAssessmentType('recruitment'); handleReset(); }}
+              className={`flex-1 min-w-[150px] py-3 px-4 rounded-lg font-medium text-sm transition-all duration-200 whitespace-nowrap ${assessmentType === 'recruitment' ? 'bg-brand-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'}`}
+            >
+              Fresher Recruitment
+            </button>
+            <button
+              onClick={() => { setAssessmentType('sales_recruitment'); handleReset(); }}
+              className={`flex-1 min-w-[150px] py-3 px-4 rounded-lg font-medium text-sm transition-all duration-200 whitespace-nowrap ${assessmentType === 'sales_recruitment' ? 'bg-brand-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'}`}
+            >
+              Sales Recruitment
             </button>
           </div>
         )}
       </header>
 
       <main className="max-w-4xl mx-auto p-6 md:p-8 w-full mt-4">
-        {appState === 'upload' && (
+        {appState === 'upload' && !assessmentType && (
+          <div className="text-center p-12 text-slate-400 border border-slate-700 rounded-2xl bg-slate-800/20 max-w-3xl mx-auto shadow-inner">
+            <User size={48} className="mx-auto mb-4 text-slate-500 opacity-50" />
+            <h2 className="text-2xl font-semibold text-white mb-2">Welcome to RDC Assessments</h2>
+            <p>Please select an assessment tab from the top menu to begin.</p>
+          </div>
+        )}
+
+        {appState === 'upload' && (assessmentType === 'ops' || assessmentType === 'sales') && (
           <div
             {...getRootProps()}
             className={`cursor-pointer text-center p-12 rounded-2xl border-2 border-dashed transition-all w-full max-w-3xl mx-auto
@@ -205,6 +233,16 @@ function App() {
               </div>
             )}
           </div>
+        )}
+
+        {appState === 'upload' && (assessmentType === 'recruitment' || assessmentType === 'sales_recruitment') && (
+          <RecruitmentTab 
+            assessmentType={assessmentType}
+            onSubmit={(text, type) => {
+              setReportText(text);
+              handleEvaluate(text, type);
+            }} 
+          />
         )}
 
         {appState === 'parsing' && (
@@ -247,7 +285,7 @@ function App() {
             <div className="flex justify-end relative">
               <div className="absolute inset-0 bg-brand-500/20 blur-2xl rounded-full"></div>
               <button
-                onClick={handleEvaluate}
+                onClick={() => handleEvaluate(reportText, assessmentType)}
                 className="relative bg-brand-600 hover:bg-brand-500 text-white px-8 py-4 rounded-xl font-semibold text-lg transition-all shadow-lg shadow-brand-500/20 active:scale-95 flex items-center gap-3 w-full sm:w-auto justify-center"
               >
                 <span>Evaluate {assessmentType === 'ops' ? 'Operations' : 'Sales'} Report</span>
