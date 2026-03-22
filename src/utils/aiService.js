@@ -489,6 +489,9 @@ export const evaluateReport = async (reportText, type = 'ops') => {
         case 'recruitment':
             promptToUse = SYSTEM_PROMPT_RECRUITMENT;
             break;
+        case 'sales_recruitment':
+            promptToUse = SYSTEM_PROMPT_SALES_RECRUITMENT;
+            break;
         case 'ops':
         default:
             promptToUse = SYSTEM_PROMPT_OPS;
