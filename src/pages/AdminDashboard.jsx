@@ -360,6 +360,7 @@ function AdminDashboard() {
                                   <th className="p-4 font-semibold">Role</th>
                                   <th className="p-4 font-semibold">Created</th>
                                   <th className="p-4 font-semibold">Status</th>
+                                  <th className="p-4 font-semibold">Name</th>
                                   <th className="p-4 font-semibold text-right">Action</th>
                               </tr>
                           </thead>
@@ -369,17 +370,18 @@ function AdminDashboard() {
                                       <td className="p-4 font-mono font-bold text-brand-400">{inv.join_code}</td>
                                       <td className="p-4 text-slate-300">
                                           {inv.assessment_type === 'sales_recruitment' ? 'Sales' : 'Fresher'}
-                                          {inv.status === 'completed' && inv.transcript_answers?.raw && (
-                                              <span className="block text-xs text-brand-300 mt-1">
-                                                  {extractName(inv.transcript_answers.raw) || "Candidate"}
-                                              </span>
-                                          )}
                                       </td>
                                       <td className="p-4 text-slate-400 text-sm">{new Date(inv.created_at).toLocaleDateString()}</td>
                                       <td className="p-4">
                                           {inv.status === 'completed' 
                                               ? <span className="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 rounded-full text-xs font-bold border border-emerald-500/20">COMPLETED</span>
                                               : <span className="px-2.5 py-1 bg-amber-500/10 text-amber-400 rounded-full text-xs font-bold border border-amber-500/20">PENDING</span>
+                                          }
+                                      </td>
+                                      <td className="p-4 font-medium text-slate-300">
+                                          {inv.status === 'completed' && inv.transcript_answers?.raw 
+                                              ? extractName(inv.transcript_answers.raw) || "Candidate"
+                                              : "-"
                                           }
                                       </td>
                                       <td className="p-4 text-right flex items-center justify-end gap-2 h-full">
@@ -451,7 +453,12 @@ function AdminDashboard() {
                 onClick={() => handleEvaluate(reportText, assessmentType)}
                 className="relative bg-brand-600 hover:bg-brand-500 text-white px-8 py-4 rounded-xl font-semibold text-lg transition-all shadow-lg shadow-brand-500/20 active:scale-95 flex items-center gap-3 w-full sm:w-auto justify-center"
               >
-                <span>Evaluate {assessmentType === 'ops' ? 'Operations' : 'Sales'} Report</span>
+                <span>Evaluate {
+                    assessmentType === 'ops' ? 'Operations Report' : 
+                    assessmentType === 'sales' ? 'Sales Report' : 
+                    assessmentType === 'recruitment' ? 'Fresher' :
+                    assessmentType === 'sales_recruitment' ? 'Sales Recruitment' : 'Report'
+                }</span>
                 <span className="text-2xl leading-none">✨</span>
               </button>
             </div>
