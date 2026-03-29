@@ -149,6 +149,26 @@ app.put('/api/interviews/:code', async (req, res) => {
     }
 });
 
+// 5. Admin deletes an interview
+app.delete('/api/interviews/:code', async (req, res) => {
+    const code = req.params.code.toUpperCase();
+    
+    try {
+        if (pool) {
+            const result = await pool.query('DELETE FROM interviews WHERE join_code = $1 RETURNING *', [code]);
+            if (result.rows.length === 0) return res.status(404).json({ error: "Invalid Join Code" });
+            res.json({ success: true });
+        } else {
+            if (!memoryDb.has(code)) return res.status(404).json({ error: "Invalid Join Code" });
+            memoryDb.delete(code);
+            res.json({ success: true });
+        }
+    } catch (error) {
+        console.error("Delete Interview Error:", error);
+        res.status(500).json({ error: "Server error deleting interview" });
+    }
+});
+
 // Serve frontend in production
 if (process.env.NODE_ENV === 'production') {
     app.use(express.static(path.join(process.cwd(), 'dist')));
