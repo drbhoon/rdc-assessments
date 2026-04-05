@@ -141,7 +141,8 @@ export default function CandidateView() {
                 <img src="/rdc_logo.png" alt="RDC Logo" className="h-10 object-contain" />
                 <div className="text-right">
                     <span className="text-sm font-semibold text-brand-400 bg-brand-500/10 px-3 py-1 rounded-full border border-brand-500/20">
-                        {interviewData.assessment_type === 'sales_recruitment' ? 'Sales Candidate' : 'Fresher Candidate'} 
+                        {interviewData.assessment_type === 'sales_recruitment' ? 'Sales Candidate' 
+                         : interviewData.assessment_type === 'kaushal_mm' ? 'Kaushal Material Management' : 'Fresher Candidate'} 
                         &nbsp;•&nbsp; {interviewData.join_code}
                     </span>
                  </div>

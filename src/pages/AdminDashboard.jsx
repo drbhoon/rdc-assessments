@@ -24,7 +24,7 @@ function AdminDashboard() {
   const [fetchingRemote, setFetchingRemote] = useState(false);
 
   useEffect(() => {
-     if (assessmentType === 'recruitment' || assessmentType === 'sales_recruitment') {
+     if (assessmentType === 'recruitment' || assessmentType === 'sales_recruitment' || assessmentType === 'kaushal_mm') {
          fetchInterviews();
      }
   }, [assessmentType])
@@ -93,6 +93,7 @@ function AdminDashboard() {
       let reportTitle = 'AI-Powered Evaluation System';
       if (assessmentType === 'sales_recruitment') reportTitle = 'Sales Recruitment Report';
       else if (assessmentType === 'recruitment') reportTitle = 'Fresher Recruitment Report';
+      else if (assessmentType === 'kaushal_mm') reportTitle = 'Kaushal MM Assessment';
       else if (assessmentType === 'sales') reportTitle = 'Sales Trainee Report';
       else if (assessmentType === 'ops') reportTitle = 'Operations Trainee Report';
 
@@ -117,7 +118,7 @@ function AdminDashboard() {
       // Split text to fit within page width, stripping emojis that crash standard jsPDF helvetica
       let safeText = evaluationResult ? evaluationResult.replace(/[^\x00-\x7F]/g, "") : "";
       
-      if (reportText && (assessmentType === 'recruitment' || assessmentType === 'sales_recruitment')) {
+      if (reportText && (assessmentType === 'recruitment' || assessmentType === 'sales_recruitment' || assessmentType === 'kaushal_mm')) {
           const safeTranscript = reportText.replace(/[^\x00-\x7F]/g, "");
           safeText += "\n\n=== ORIGINAL INTERVIEW TRANSCRIPT ===\n\n" + safeTranscript;
       }
@@ -141,7 +142,7 @@ function AdminDashboard() {
       let cleanFilename = "Candidate";
       if (file?.name) {
           cleanFilename = file.name.replace(/\.[^/.]+$/, "");
-      } else if (assessmentType === 'recruitment' || assessmentType === 'sales_recruitment') {
+      } else if (assessmentType === 'recruitment' || assessmentType === 'sales_recruitment' || assessmentType === 'kaushal_mm') {
           cleanFilename = "Interview_Transcript";
       }
       
@@ -294,8 +295,15 @@ function AdminDashboard() {
             >
               Sales Recruitment Link
             </button>
+            <button
+              onClick={() => { setAssessmentType('kaushal_mm'); handleReset(); }}
+              className={`flex-1 min-w-[150px] py-3 px-4 rounded-lg font-medium text-sm transition-all duration-200 whitespace-nowrap ${assessmentType === 'kaushal_mm' ? 'bg-brand-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'}`}
+            >
+              Kaushal MM Link
+            </button>
           </div>
         )}
+
       </header>
 
       <main className="max-w-4xl mx-auto p-6 md:p-8 w-full mt-4">
@@ -333,7 +341,7 @@ function AdminDashboard() {
           </div>
         )}
 
-        {appState === 'upload' && (assessmentType === 'recruitment' || assessmentType === 'sales_recruitment') && (
+        {appState === 'upload' && (assessmentType === 'recruitment' || assessmentType === 'sales_recruitment' || assessmentType === 'kaushal_mm') && (
           <div className="bg-slate-800/80 p-8 rounded-2xl border border-slate-700/50 shadow-2xl max-w-4xl mx-auto text-left">
               <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-700">
                   <h2 className="text-2xl font-bold text-white">Remote Interview Management</h2>
@@ -343,6 +351,9 @@ function AdminDashboard() {
                       </button>
                       <button onClick={() => generateLink('sales_recruitment')} className="px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded-lg text-sm font-semibold transition-colors">
                           + New Sales Link
+                      </button>
+                      <button onClick={() => generateLink('kaushal_mm')} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-semibold transition-colors">
+                          + New Kaushal Link
                       </button>
                   </div>
               </div>
@@ -369,7 +380,7 @@ function AdminDashboard() {
                                   <tr key={inv.id} className="border-b border-slate-800 hover:bg-slate-800/50 transition-colors group">
                                       <td className="p-4 font-mono font-bold text-brand-400">{inv.join_code}</td>
                                       <td className="p-4 text-slate-300">
-                                          {inv.assessment_type === 'sales_recruitment' ? 'Sales' : 'Fresher'}
+                                          {inv.assessment_type === 'sales_recruitment' ? 'Sales' : inv.assessment_type === 'kaushal_mm' ? 'Kaushal MM' : 'Fresher'}
                                       </td>
                                       <td className="p-4 text-slate-400 text-sm">{new Date(inv.created_at).toLocaleDateString()}</td>
                                       <td className="p-4">
@@ -457,7 +468,8 @@ function AdminDashboard() {
                     assessmentType === 'ops' ? 'Operations Report' : 
                     assessmentType === 'sales' ? 'Sales Report' : 
                     assessmentType === 'recruitment' ? 'Fresher' :
-                    assessmentType === 'sales_recruitment' ? 'Sales Recruitment' : 'Report'
+                    assessmentType === 'sales_recruitment' ? 'Sales Recruitment' : 
+                    assessmentType === 'kaushal_mm' ? 'Kaushal MM' : 'Report'
                 }</span>
                 <span className="text-2xl leading-none">✨</span>
               </button>

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Mic, MicOff, ChevronRight, ChevronLeft, CheckCircle2, User, GraduationCap, Calendar, MapPin, Send, AlertCircle } from 'lucide-react';
 
 const FRESHER_QUESTIONS = [
@@ -26,8 +26,38 @@ const SALES_QUESTIONS = [
   "Tell me about a time when you had to learn something completely new for your job."
 ];
 
+const KAUSHAL_ALL_QUESTIONS = [
+  "You need to procure raw material urgently for plant operations. What process should you follow?",
+  "Who is authorized to approve material procurement and under what conditions?",
+  "What checks are required before onboarding a new vendor?",
+  "Why is it important to understand vendor payment terms?",
+  "Why must materials be correctly mapped in ERP?",
+  "What is the importance of GRN?",
+  "When can ITC be claimed?",
+  "How will you ensure inventory control?",
+  "Cement consumption increased by 2%. What will you do?",
+  "ERP shows higher stock than physical. What will you do?",
+  "Admixture barrels returned with less weight. Action?",
+  "How is cement transfer handled?",
+  "Excess aggregate stock. What will you do?",
+  "Invoice higher than PO. What will you do?",
+  "Weighbridge fluctuating. Action?",
+  "Material issued without ERP entry. Risk?",
+  "Material cost increased. What will you check?",
+  "How will you prevent losses?",
+  "Why is ERP discipline critical?",
+  "Vendor not approved but urgent requirement. Action?"
+];
+
 export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment' }) {
-  const questions = assessmentType === 'sales_recruitment' ? SALES_QUESTIONS : FRESHER_QUESTIONS;
+  const questions = useMemo(() => {
+    if (assessmentType === 'sales_recruitment') return SALES_QUESTIONS;
+    if (assessmentType === 'kaushal_mm') {
+      const shuffled = [...KAUSHAL_ALL_QUESTIONS].sort(() => 0.5 - Math.random());
+      return shuffled.slice(0, 10);
+    }
+    return FRESHER_QUESTIONS;
+  }, [assessmentType]);
 
   const [step, setStep] = useState(0); // 0 = details, 1-N = questions
   const [details, setDetails] = useState({ name: '', qualification: '', dob: '', hometown: '' });
