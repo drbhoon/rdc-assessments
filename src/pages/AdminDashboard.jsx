@@ -18,6 +18,19 @@ function AdminDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [loginError, setLoginError] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('adminAuth');
+    if (saved === 'true') {
+        setIsAuthenticated(true);
+    }
+  }, []);
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    localStorage.removeItem('adminAuth');
+    setPasswordInput('');
+  };
   
   // V5 Remote Recruitment States
   const [interviews, setInterviews] = useState([]);
@@ -219,6 +232,7 @@ function AdminDashboard() {
     if (passwordInput === expectedPassword) {
         setIsAuthenticated(true);
         setLoginError(false);
+        localStorage.setItem('adminAuth', 'true');
     } else {
         setLoginError('Invalid password. Please try again.');
     }
@@ -257,7 +271,13 @@ function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 font-sans selection:bg-brand-500/30">
-      <header className="border-b border-slate-800 bg-slate-950/50 backdrop-blur-md sticky top-0 z-10 px-6 py-6 flex flex-col items-center justify-center text-center">
+      <header className="relative border-b border-slate-800 bg-slate-950/50 backdrop-blur-md sticky top-0 z-10 px-6 py-6 flex flex-col items-center justify-center text-center">
+        <button 
+            onClick={handleLogout}
+            className="absolute top-6 right-6 text-sm text-slate-400 hover:text-white bg-slate-800/50 px-3 py-1.5 rounded border border-slate-700 transition"
+        >
+            Logout
+        </button>
         <div className="flex flex-col items-center gap-4 mb-4">
           <img src="/rdc_logo.png" alt="RDC Logo" className="h-20 object-contain drop-shadow-md" />
           <h1 className="font-extrabold text-2xl md:text-4xl tracking-tight text-white uppercase mt-2">RDC ASSESSMENTS & RECRUITMENTS</h1>
