@@ -98,163 +98,160 @@ function AdminDashboard() {
   const generatePDF = () => {
     setIsGeneratingPdf(true);
     
-    // Use timeout to ensure state update renders before blocking thread
-    setTimeout(() => {
-      try {
-        const doc = new jsPDF()
-        const pageWidth = doc.internal.pageSize.getWidth()
-        const margin = 20
+    try {
+      const doc = new jsPDF()
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const margin = 20
 
-        let reportRole = 'Candidate';
-        if (assessmentType === 'sales_recruitment') reportRole = 'Sales Recruitment';
-        else if (assessmentType === 'recruitment') reportRole = 'Fresher Recruitment';
-        else if (assessmentType === 'kaushal_mm') reportRole = 'Kaushal Material Management';
-        else if (assessmentType === 'sales') reportRole = 'Sales Trainee';
-        else if (assessmentType === 'ops') reportRole = 'Operations Trainee';
+      let reportRole = 'Candidate';
+      if (assessmentType === 'sales_recruitment') reportRole = 'Sales Recruitment';
+      else if (assessmentType === 'recruitment') reportRole = 'Fresher Recruitment';
+      else if (assessmentType === 'kaushal_mm') reportRole = 'Kaushal Material Management';
+      else if (assessmentType === 'sales') reportRole = 'Sales Trainee';
+      else if (assessmentType === 'ops') reportRole = 'Operations Trainee';
 
-        let cleanFilename = "Candidate";
-        if (file?.name) {
-            cleanFilename = file.name.replace(/\.[^/.]+$/, "");
-        } else if (assessmentType === 'recruitment' || assessmentType === 'sales_recruitment' || assessmentType === 'kaushal_mm') {
-            cleanFilename = "Interview_Transcript";
-        }
-
-        const candidateName = extractName(reportText) || cleanFilename || "N/A";
-
-        // Split text to fit within page width, stripping emojis that crash standard jsPDF helvetica
-        let safeText = evaluationResult ? evaluationResult.replace(/[^\x00-\x7F]/g, "") : "";
-
-        // Attempt to extract the FINAL SUMMARY
-        let overallScore = "Not Available";
-        let overallAssessment = "Not Available";
-        
-        const finalSummaryRegex = /(?:FINAL SUMMARY|Final Calculation:)[\s\S]*?(?:Total Score:|Raw Score:)\s*\*?(.*?)\n[\s\S]*?(?:Overall Assessment:|Verdict:)\s*\*?([\s\S]*)/i;
-        const match = safeText.match(finalSummaryRegex);
-        if (match) {
-            overallScore = match[1].replace('Total Score:', '').replace('Raw Score:', '').trim();
-            overallAssessment = match[2].replace('Overall Assessment:', '').replace('Verdict:', '').trim();
-            safeText = safeText.replace(/━━━━━+[\s\S]*?(FINAL SUMMARY|Final Calculation:)[\s\S]*/i, '').trim();
-        }
-
-        if (reportText && (assessmentType === 'recruitment' || assessmentType === 'sales_recruitment' || assessmentType === 'kaushal_mm')) {
-            const safeTranscript = reportText.replace(/[^\x00-\x7F]/g, "");
-            safeText += "\n\n=== ORIGINAL INTERVIEW TRANSCRIPT ===\n\n" + safeTranscript;
-        }
-
-        let cursorY = margin;
-
-        // Add Header
-        doc.setFont('helvetica', 'bold')
-        doc.setFontSize(16)
-        doc.text(`RDC ${reportRole}`, pageWidth / 2, cursorY, { align: 'center' })
-        cursorY += 8;
-
-        doc.text('Competency Assessment Report', pageWidth / 2, cursorY, { align: 'center' })
-        cursorY += 6;
-
-        doc.setFont('helvetica', 'normal')
-        doc.setFontSize(10)
-        doc.text('SRT \u2013 Situation Reaction Test | AI Evaluated', pageWidth / 2, cursorY, { align: 'center' })
-        cursorY += 6;
-
-        doc.text('CONFIDENTIAL \u2013 Head Office Use Only', pageWidth / 2, cursorY, { align: 'center' })
-        cursorY += 10;
-        
-        // Add dividing line
-        doc.setLineWidth(0.5)
-        doc.line(margin, cursorY, pageWidth - margin, cursorY)
-        cursorY += 8;
-
-        // 1. Candidate Information
-        doc.setFont('helvetica', 'bold')
-        doc.setFontSize(12)
-        doc.text('1. Candidate Information', margin, cursorY)
-        cursorY += 7;
-
-        doc.setFont('helvetica', 'bold')
-        doc.setFontSize(10)
-        doc.text('Name:', margin, cursorY)
-        doc.setFont('helvetica', 'normal')
-        doc.text(candidateName, margin + 15, cursorY)
-
-        doc.setFont('helvetica', 'bold')
-        doc.text('Report Generated:', pageWidth / 2 + 10, cursorY)
-        doc.setFont('helvetica', 'normal')
-        doc.text(new Date().toLocaleDateString(), pageWidth / 2 + 45, cursorY)
-        cursorY += 10;
-
-        // 2. Overall Performance Summary
-        doc.setFont('helvetica', 'bold')
-        doc.setFontSize(12)
-        doc.text('2. Overall Performance Summary', margin, cursorY)
-        cursorY += 7;
-
-        doc.setFont('helvetica', 'bold')
-        doc.setFontSize(10)
-        doc.text('Total Score:', margin, cursorY)
-        doc.setFont('helvetica', 'normal')
-        doc.text(overallScore, margin + 25, cursorY)
-        cursorY += 6;
-
-        doc.setFont('helvetica', 'bold')
-        doc.text('Overall Readiness:', margin, cursorY)
-        cursorY += 6;
-
-        // Split readiness text to fit
-        doc.setFont('helvetica', 'normal');
-        const readinessLines = doc.splitTextToSize(overallAssessment, pageWidth - (margin * 2));
-        for (let i = 0; i < readinessLines.length; i++) {
-           if (cursorY > doc.internal.pageSize.getHeight() - margin) {
-              doc.addPage();
-              cursorY = margin;
-           }
-           doc.text(readinessLines[i], margin, cursorY);
-           cursorY += 5;
-        }
-        cursorY += 8;
-
-        // 3. Competency Narrative
-        doc.setFont('helvetica', 'bold')
-        doc.setFontSize(12)
-        doc.text('3. Competency-wise Assessment Narrative', margin, cursorY)
-        cursorY += 7;
-
-        doc.setFont('helvetica', 'normal')
-        doc.setFontSize(10)
-
-        const splitText = doc.splitTextToSize(safeText, pageWidth - (margin * 2))
-
-        for (let i = 0; i < splitText.length; i++) {
-          if (cursorY > doc.internal.pageSize.getHeight() - margin) {
-            doc.addPage()
-            cursorY = margin // Reset Y for new page
-          }
-          doc.text(splitText[i], margin, cursorY)
-          cursorY += 5 // Line height
-        }
-
-        // Sanitize the filename to prevent browser Blob UUID fallbacks
-        const safeFilename = cleanFilename.replace(/[^a-zA-Z0-9_\- ]/g, "_");
-        const fileName = `RDC_Assessment_${safeFilename}.pdf`;
-        
-        // Force reliable HTML5 download link (bypassing jsPDF internal save quirks)
-        const pdfBlob = doc.output('blob');
-        const blobUrl = URL.createObjectURL(pdfBlob);
-        const link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = fileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(blobUrl);
-
-      } catch (err) {
-        console.error("PDF generation failed:", err)
-        alert("Failed to generate PDF. Please try again.")
-      } finally {
-        setIsGeneratingPdf(false)
+      let cleanFilename = "Candidate";
+      if (file?.name) {
+          cleanFilename = file.name.replace(/\.[^/.]+$/, "");
+      } else if (assessmentType === 'recruitment' || assessmentType === 'sales_recruitment' || assessmentType === 'kaushal_mm') {
+          cleanFilename = "Interview_Transcript";
       }
-    }, 10);
+
+      const candidateName = extractName(reportText) || cleanFilename || "N/A";
+
+      // Split text to fit within page width, stripping emojis that crash standard jsPDF helvetica
+      let safeText = evaluationResult ? evaluationResult.replace(/[^\x00-\x7F]/g, "") : "";
+
+      // Attempt to extract the FINAL SUMMARY
+      let overallScore = "Not Available";
+      let overallAssessment = "Not Available";
+      
+      const finalSummaryRegex = /(?:FINAL SUMMARY|Final Calculation:)[\s\S]*?(?:Total Score:|Raw Score:)\s*\*?(.*?)\n[\s\S]*?(?:Overall Assessment:|Verdict:)\s*\*?([\s\S]*)/i;
+      const match = safeText.match(finalSummaryRegex);
+      if (match) {
+          overallScore = match[1].replace('Total Score:', '').replace('Raw Score:', '').trim();
+          overallAssessment = match[2].replace('Overall Assessment:', '').replace('Verdict:', '').trim();
+          safeText = safeText.replace(/━━━━━+[\s\S]*?(FINAL SUMMARY|Final Calculation:)[\s\S]*/i, '').trim();
+      }
+
+      if (reportText && (assessmentType === 'recruitment' || assessmentType === 'sales_recruitment' || assessmentType === 'kaushal_mm')) {
+          const safeTranscript = reportText.replace(/[^\x00-\x7F]/g, "");
+          safeText += "\n\n=== ORIGINAL INTERVIEW TRANSCRIPT ===\n\n" + safeTranscript;
+      }
+
+      let cursorY = margin;
+
+      // Add Header
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(16)
+      doc.text(`RDC ${reportRole}`, pageWidth / 2, cursorY, { align: 'center' })
+      cursorY += 8;
+
+      doc.text('Competency Assessment Report', pageWidth / 2, cursorY, { align: 'center' })
+      cursorY += 6;
+
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(10)
+      doc.text('SRT \u2013 Situation Reaction Test | AI Evaluated', pageWidth / 2, cursorY, { align: 'center' })
+      cursorY += 6;
+
+      doc.text('CONFIDENTIAL \u2013 Head Office Use Only', pageWidth / 2, cursorY, { align: 'center' })
+      cursorY += 10;
+      
+      // Add dividing line
+      doc.setLineWidth(0.5)
+      doc.line(margin, cursorY, pageWidth - margin, cursorY)
+      cursorY += 8;
+
+      // 1. Candidate Information
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(12)
+      doc.text('1. Candidate Information', margin, cursorY)
+      cursorY += 7;
+
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(10)
+      doc.text('Name:', margin, cursorY)
+      doc.setFont('helvetica', 'normal')
+      doc.text(candidateName, margin + 15, cursorY)
+
+      doc.setFont('helvetica', 'bold')
+      doc.text('Report Generated:', pageWidth / 2 + 10, cursorY)
+      doc.setFont('helvetica', 'normal')
+      doc.text(new Date().toLocaleDateString(), pageWidth / 2 + 45, cursorY)
+      cursorY += 10;
+
+      // 2. Overall Performance Summary
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(12)
+      doc.text('2. Overall Performance Summary', margin, cursorY)
+      cursorY += 7;
+
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(10)
+      doc.text('Total Score:', margin, cursorY)
+      doc.setFont('helvetica', 'normal')
+      doc.text(overallScore, margin + 25, cursorY)
+      cursorY += 6;
+
+      doc.setFont('helvetica', 'bold')
+      doc.text('Overall Readiness:', margin, cursorY)
+      cursorY += 6;
+
+      // Split readiness text to fit
+      doc.setFont('helvetica', 'normal');
+      const readinessLines = doc.splitTextToSize(overallAssessment, pageWidth - (margin * 2));
+      for (let i = 0; i < readinessLines.length; i++) {
+         if (cursorY > doc.internal.pageSize.getHeight() - margin) {
+            doc.addPage();
+            cursorY = margin;
+         }
+         doc.text(readinessLines[i], margin, cursorY);
+         cursorY += 5;
+      }
+      cursorY += 8;
+
+      // 3. Competency Narrative
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(12)
+      doc.text('3. Competency-wise Assessment Narrative', margin, cursorY)
+      cursorY += 7;
+
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(10)
+
+      const splitText = doc.splitTextToSize(safeText, pageWidth - (margin * 2))
+
+      for (let i = 0; i < splitText.length; i++) {
+        if (cursorY > doc.internal.pageSize.getHeight() - margin) {
+          doc.addPage()
+          cursorY = margin // Reset Y for new page
+        }
+        doc.text(splitText[i], margin, cursorY)
+        cursorY += 5 // Line height
+      }
+
+      // Sanitize the filename to prevent browser Blob UUID fallbacks
+      const safeFilename = cleanFilename.replace(/[^a-zA-Z0-9_\- ]/g, "_");
+      const fileName = `RDC_Assessment_${safeFilename}.pdf`;
+      
+      // Force reliable HTML5 download link (bypassing jsPDF internal save quirks)
+      const pdfBlob = doc.output('blob');
+      const blobUrl = URL.createObjectURL(pdfBlob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
+
+    } catch (err) {
+      console.error("PDF generation failed:", err)
+      alert("Failed to generate PDF. Please try again.")
+    } finally {
+      setIsGeneratingPdf(false)
+    }
   }
 
   const onDrop = useCallback(async (acceptedFiles) => {
