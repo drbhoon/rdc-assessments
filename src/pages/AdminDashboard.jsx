@@ -125,12 +125,12 @@ function AdminDashboard() {
       let overallScore = "Not Available";
       let overallAssessment = "Not Available";
       
-      const finalSummaryRegex = /FINAL SUMMARY[\s\S]*?(Total Score:\s*.*?\n)[\s\S]*?(Overall Assessment:\s*[\s\S]*)/i;
+      const finalSummaryRegex = /(?:FINAL SUMMARY|Final Calculation:)[\s\S]*?(?:Total Score:|Raw Score:)\s*\*?(.*?)\n[\s\S]*?(?:Overall Assessment:|Verdict:)\s*\*?([\s\S]*)/i;
       const match = safeText.match(finalSummaryRegex);
       if (match) {
-          overallScore = match[1].replace('Total Score:', '').trim();
-          overallAssessment = match[2].replace('Overall Assessment:', '').trim();
-          safeText = safeText.replace(/━━━━━+[\s\S]*?FINAL SUMMARY[\s\S]*/i, '').trim();
+          overallScore = match[1].replace('Total Score:', '').replace('Raw Score:', '').trim();
+          overallAssessment = match[2].replace('Overall Assessment:', '').replace('Verdict:', '').trim();
+          safeText = safeText.replace(/━━━━━+[\s\S]*?(FINAL SUMMARY|Final Calculation:)[\s\S]*/i, '').trim();
       }
 
       if (reportText && (assessmentType === 'recruitment' || assessmentType === 'sales_recruitment' || assessmentType === 'kaushal_mm')) {

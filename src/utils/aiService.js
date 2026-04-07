@@ -399,9 +399,12 @@ Generate a report for each candidate EXACTLY in this format:
 | **Q8 – Post-Exam Gap** | [X] | [Reasoning] |
 | **Q9 – Daily Routine** | [X] | [Reasoning — neutral if wake time unstated] |
 
-**Final Calculation:**
-* **Raw Score:** [XX / 90]
-* **Normalized Score:** [XX.X%]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FINAL SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Total Score: [XX / 90] ([XX.X%])
+Overall Assessment:
 * **Verdict:** [HIRE / BORDERLINE / REJECT]
 * **Flags Triggered:** [List]
 * **Evaluator Summary:** [2–3 line narrative]`;
@@ -466,9 +469,12 @@ Generate a report EXACTLY in this format:
 | **Q9 – Field Sales Motivation** | [X] | [Field comfort check + motivation type] |
 | **Q10 – Learning Something New** | [X] | [STAR check + learning agility signals] |
 
-**Final Calculation:**
-* **Raw Score:** [XX / 100]
-* **Normalized Score:** [XX%]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FINAL SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Total Score: [XX / 100] ([XX%])
+Overall Assessment:
 * **Verdict:** [HIRE / BORDERLINE / REJECT]
 * **Flags Triggered:** [List all flags like Price Capitulation or Field Discomfort]
 * **Evaluator Summary:** [2–3 lines referencing RDC field sales fit specifically — mention STAR compliance]`;
@@ -500,19 +506,32 @@ Instructions:
    - Consider real plant constraints
 
 6. For each answer return:
-   - Score (1–5)
+   - Score (1–10)
    - 2 Strengths
    - 2 Improvement areas
 
 7. After all 10 questions:
-   - Calculate average score
-   - Identify competency strengths
-   - Identify top 3 improvement areas
+   - Calculate total score out of 100
+   - Calculate percentage
 
-8. Generate FINAL REPORT:
-   - Overall rating
-   - Practical readiness for plant role
-   - Specific behavioural feedback
+8. Generate FINAL REPORT EXACTLY in this format:
+
+| Question | Rating (1-10) | Strengths / Improvement Areas |
+|:---|:---:|:---|
+| **Q1 Context** | [X] | **Strengths:**<br>- ...<br>**Improvement Areas:**<br>- ... |
+
+... (continue for all 10 questions)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FINAL SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Total Score: [XX / 100] ([XX]%)
+Overall Assessment:
+* **Overall Rating:** [e.g. Needs Improvement, Developing Competence, Proficient, Excellent]
+* **Practical Readiness:** [Narrative assessment]
+* **Competency Strengths:** [List based on technical focus]
+* **Top 3 Improvement Areas:** [List]
 
 Important:
 - Do NOT be theoretical
