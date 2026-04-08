@@ -3,7 +3,7 @@ import { useDropzone } from 'react-dropzone'
 import { FileUp, Loader2, FileText, FileCheck2, AlertCircle, RefreshCw, Download, CheckCircle2, ChevronRight, Check, User, Trash2 } from 'lucide-react'
 import { extractTextFromFile } from '../utils/fileParser'
 import { evaluateReport } from '../utils/aiService'
-import jsPDF from 'jspdf'
+import html2pdf from 'html2pdf.js'
 
 function AdminDashboard() {
   const [appState, setAppState] = useState('upload') // upload, parsing, ready_for_api, api, results
@@ -13,6 +13,7 @@ function AdminDashboard() {
   const [error, setError] = useState(null)
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
   const [assessmentType, setAssessmentType] = useState(null) // null, ops, sales, recruitment, sales_recruitment
+  const [selectedJoinCode, setSelectedJoinCode] = useState(null)
   
   // Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -92,6 +93,7 @@ function AdminDashboard() {
       setReportText(interview.transcript_answers?.raw || "");
       setAssessmentType(interview.assessment_type);
       setFile({ name: `Interview_ID_${interview.join_code}` });
+      setSelectedJoinCode(interview.join_code);
       setAppState('ready_for_api');
   }
 
@@ -99,17 +101,6 @@ function AdminDashboard() {
     setIsGeneratingPdf(true);
     
     try {
-      const doc = new jsPDF()
-      const pageWidth = doc.internal.pageSize.getWidth()
-      const margin = 20
-
-      let reportRole = 'Candidate';
-      if (assessmentType === 'sales_recruitment') reportRole = 'Sales Recruitment';
-      else if (assessmentType === 'recruitment') reportRole = 'Fresher Recruitment';
-      else if (assessmentType === 'kaushal_mm') reportRole = 'Kaushal Material Management';
-      else if (assessmentType === 'sales') reportRole = 'Sales Trainee';
-      else if (assessmentType === 'ops') reportRole = 'Operations Trainee';
-
       let cleanFilename = "Candidate";
       if (file?.name) {
           cleanFilename = file.name.replace(/\.[^/.]+$/, "");
@@ -117,139 +108,22 @@ function AdminDashboard() {
           cleanFilename = "Interview_Transcript";
       }
 
-      const candidateName = extractName(reportText) || cleanFilename || "N/A";
-
-      // Split text to fit within page width, stripping emojis that crash standard jsPDF helvetica
-      let safeText = evaluationResult ? evaluationResult.replace(/[^\x00-\x7F]/g, "") : "";
-
-      // Attempt to extract the FINAL SUMMARY
-      let overallScore = "Not Available";
-      let overallAssessment = "Not Available";
-      
-      const finalSummaryRegex = /(?:FINAL SUMMARY|Final Calculation:)[\s\S]*?(?:Total Score:|Raw Score:)\s*\*?(.*?)\n[\s\S]*?(?:Overall Assessment:|Verdict:)\s*\*?([\s\S]*)/i;
-      const match = safeText.match(finalSummaryRegex);
-      if (match) {
-          overallScore = match[1].replace('Total Score:', '').replace('Raw Score:', '').trim();
-          overallAssessment = match[2].replace('Overall Assessment:', '').replace('Verdict:', '').trim();
-          safeText = safeText.replace(/━━━━━+[\s\S]*?(FINAL SUMMARY|Final Calculation:)[\s\S]*/i, '').trim();
-      }
-
-      if (reportText && (assessmentType === 'recruitment' || assessmentType === 'sales_recruitment' || assessmentType === 'kaushal_mm')) {
-          const safeTranscript = reportText.replace(/[^\x00-\x7F]/g, "");
-          safeText += "\n\n=== ORIGINAL INTERVIEW TRANSCRIPT ===\n\n" + safeTranscript;
-      }
-
-      let cursorY = margin;
-
-      // Add Header
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(16)
-      doc.text(`RDC ${reportRole}`, pageWidth / 2, cursorY, { align: 'center' })
-      cursorY += 8;
-
-      doc.text('Competency Assessment Report', pageWidth / 2, cursorY, { align: 'center' })
-      cursorY += 6;
-
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(10)
-      doc.text('SRT \u2013 Situation Reaction Test | AI Evaluated', pageWidth / 2, cursorY, { align: 'center' })
-      cursorY += 6;
-
-      doc.text('CONFIDENTIAL \u2013 Head Office Use Only', pageWidth / 2, cursorY, { align: 'center' })
-      cursorY += 10;
-      
-      // Add dividing line
-      doc.setLineWidth(0.5)
-      doc.line(margin, cursorY, pageWidth - margin, cursorY)
-      cursorY += 8;
-
-      // 1. Candidate Information
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(12)
-      doc.text('1. Candidate Information', margin, cursorY)
-      cursorY += 7;
-
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(10)
-      doc.text('Name:', margin, cursorY)
-      doc.setFont('helvetica', 'normal')
-      doc.text(candidateName, margin + 15, cursorY)
-
-      doc.setFont('helvetica', 'bold')
-      doc.text('Report Generated:', pageWidth / 2 + 10, cursorY)
-      doc.setFont('helvetica', 'normal')
-      doc.text(new Date().toLocaleDateString(), pageWidth / 2 + 45, cursorY)
-      cursorY += 10;
-
-      // 2. Overall Performance Summary
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(12)
-      doc.text('2. Overall Performance Summary', margin, cursorY)
-      cursorY += 7;
-
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(10)
-      doc.text('Total Score:', margin, cursorY)
-      doc.setFont('helvetica', 'normal')
-      doc.text(overallScore, margin + 25, cursorY)
-      cursorY += 6;
-
-      doc.setFont('helvetica', 'bold')
-      doc.text('Overall Readiness:', margin, cursorY)
-      cursorY += 6;
-
-      // Split readiness text to fit
-      doc.setFont('helvetica', 'normal');
-      const readinessLines = doc.splitTextToSize(overallAssessment, pageWidth - (margin * 2));
-      for (let i = 0; i < readinessLines.length; i++) {
-         if (cursorY > doc.internal.pageSize.getHeight() - margin) {
-            doc.addPage();
-            cursorY = margin;
-         }
-         doc.text(readinessLines[i], margin, cursorY);
-         cursorY += 5;
-      }
-      cursorY += 8;
-
-      // 3. Competency Narrative
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(12)
-      doc.text('3. Competency-wise Assessment Narrative', margin, cursorY)
-      cursorY += 7;
-
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(10)
-
-      const splitText = doc.splitTextToSize(safeText, pageWidth - (margin * 2))
-
-      for (let i = 0; i < splitText.length; i++) {
-        if (cursorY > doc.internal.pageSize.getHeight() - margin) {
-          doc.addPage()
-          cursorY = margin // Reset Y for new page
-        }
-        doc.text(splitText[i], margin, cursorY)
-        cursorY += 5 // Line height
-      }
-
-      // Sanitize the filename to prevent browser Blob UUID fallbacks
       const safeFilename = cleanFilename.replace(/[^a-zA-Z0-9_\- ]/g, "_");
       const fileName = `RDC_Assessment_${safeFilename}.pdf`;
       
-      // Force reliable HTML5 download link (bypassing jsPDF internal save quirks)
-      const pdfBlob = doc.output('blob');
-      const blobUrl = URL.createObjectURL(pdfBlob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(blobUrl);
+      const element = document.getElementById('report-container-pdf');
+      const opt = {
+        margin:       10,
+        filename:     fileName,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
 
+      html2pdf().from(element).set(opt).save().then(() => setIsGeneratingPdf(false));
     } catch (err) {
       console.error("PDF generation failed:", err)
       alert("Failed to generate PDF. Please try again.")
-    } finally {
       setIsGeneratingPdf(false)
     }
   }
@@ -292,7 +166,29 @@ function AdminDashboard() {
     setAppState('api')
     setError(null)
     try {
-      const result = await evaluateReport(textToEvaluate, typeToEvaluate)
+      let cachedResult = null;
+      if (selectedJoinCode) {
+        const cachedInterview = interviews.find(i => i.join_code === selectedJoinCode);
+        if (cachedInterview && cachedInterview.ai_report) {
+            cachedResult = cachedInterview.ai_report;
+        }
+      }
+
+      let result = cachedResult;
+      if (!result) {
+        result = await evaluateReport(textToEvaluate, typeToEvaluate);
+        
+        // Save to DB so it doesn't regenerate
+        if (selectedJoinCode) {
+           await fetch(`/api/interviews/${selectedJoinCode}/report`, {
+               method: 'POST',
+               headers: { 'Content-Type': 'application/json' },
+               body: JSON.stringify({ ai_report: result })
+           });
+           fetchInterviews(); // refresh the list
+        }
+      }
+
       setEvaluationResult(result)
       setAppState('results')
     } catch (err) {
@@ -306,6 +202,7 @@ function AdminDashboard() {
     setFile(null)
     setReportText('')
     setEvaluationResult(null)
+    setSelectedJoinCode(null)
     setError(null)
     setAppState('upload')
   }
@@ -615,9 +512,11 @@ function AdminDashboard() {
               </div>
             </div>
 
-            <div className="bg-slate-900/50 p-6 rounded-xl border border-slate-700/50 whitespace-pre-wrap font-mono text-sm leading-relaxed text-slate-300 overflow-x-auto">
-              {evaluationResult}
-            </div>
+            <div 
+              id="report-container-pdf"
+              className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm overflow-x-auto text-slate-800"
+              dangerouslySetInnerHTML={{ __html: evaluationResult }}
+            />
           </div>
         )}
       </main>

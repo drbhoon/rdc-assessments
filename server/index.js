@@ -34,11 +34,15 @@ if (DATABASE_URL) {
             assessment_type VARCHAR(50) NOT NULL,
             candidate_details JSONB,
             transcript_answers JSONB,
+            ai_report TEXT,
             status VARCHAR(20) DEFAULT 'pending',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
-    `).then(() => console.log("Postgres tables verified."))
-      .catch(err => console.error("Postgres init error:", err));
+    `).then(() => {
+        console.log("Postgres tables verified.");
+        // Non-destructive addition if table already existed
+        return pool.query('ALTER TABLE interviews ADD COLUMN IF NOT EXISTS ai_report TEXT;');
+    }).catch(err => console.error("Postgres init error:", err));
 } else {
     console.warn("⚠️ No DATABASE_URL found. Using IN-MEMORY database for local testing! Data will be lost on restart. ⚠️");
 }
@@ -71,6 +75,7 @@ app.post('/api/interviews', async (req, res) => {
                 assessment_type,
                 candidate_details: null,
                 transcript_answers: null,
+                ai_report: null,
                 status: 'pending',
                 created_at: new Date()
             };
@@ -146,6 +151,32 @@ app.put('/api/interviews/:code', async (req, res) => {
     } catch (error) {
         console.error("Submit Interview Error:", error);
         res.status(500).json({ error: "Server error submitting interview" });
+    }
+});
+
+// 4.5. Admin saves AI Report
+app.post('/api/interviews/:code/report', async (req, res) => {
+    const code = req.params.code.toUpperCase();
+    const { ai_report } = req.body;
+
+    try {
+        if (pool) {
+            const result = await pool.query(
+                'UPDATE interviews SET ai_report = $1 WHERE join_code = $2 RETURNING *',
+                [ai_report, code]
+            );
+            if (result.rows.length === 0) return res.status(404).json({ error: "Invalid Join Code" });
+            res.json(result.rows[0]);
+        } else {
+            const record = memoryDb.get(code);
+            if (!record) return res.status(404).json({ error: "Invalid Join Code" });
+            record.ai_report = ai_report;
+            memoryDb.set(code, record);
+            res.json(record);
+        }
+    } catch (error) {
+        console.error("Save Report Error:", error);
+        res.status(500).json({ error: "Server error saving report" });
     }
 });
 
