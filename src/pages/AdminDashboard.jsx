@@ -3,7 +3,8 @@ import { useDropzone } from 'react-dropzone'
 import { FileUp, Loader2, FileText, FileCheck2, AlertCircle, RefreshCw, Download, CheckCircle2, ChevronRight, Check, User, Trash2 } from 'lucide-react'
 import { extractTextFromFile } from '../utils/fileParser'
 import { evaluateReport } from '../utils/aiService'
-import html2pdf from 'html2pdf.js'
+import html2canvas from 'html2canvas'
+import jsPDF from 'jspdf'
 
 function AdminDashboard() {
   const [appState, setAppState] = useState('upload') // upload, parsing, ready_for_api, api, results
@@ -97,7 +98,7 @@ function AdminDashboard() {
       setAppState('ready_for_api');
   }
 
-  const generatePDF = () => {
+  const generatePDF = async () => {
     setIsGeneratingPdf(true);
     
     try {
@@ -112,23 +113,19 @@ function AdminDashboard() {
       const fileName = `RDC_Assessment_${safeFilename}.pdf`;
       
       const element = document.getElementById('report-container-pdf');
-      const opt = {
-        margin:       10,
-        filename:     fileName,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true, logging: true },
-        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-      };
-
-      html2pdf().from(element).set(opt).save()
-        .then(() => {
-            setIsGeneratingPdf(false);
-        })
-        .catch((err) => {
-            console.error("html2pdf async error:", err);
-            alert("PDF generation encountered an error. Please try again.");
-            setIsGeneratingPdf(false);
-        });
+      
+      // Use core libraries directly to prevent wrapper promise hanging
+      const canvas = await html2canvas(element, { scale: 2, useCORS: true, logging: false });
+      const imgData = canvas.toDataURL('image/jpeg', 0.98);
+      
+      const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      
+      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(fileName);
+      setIsGeneratingPdf(false);
+      
     } catch (err) {
       console.error("PDF generation failed:", err)
       alert("Failed to generate PDF. Please try again.")
