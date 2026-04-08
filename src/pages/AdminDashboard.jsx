@@ -4,7 +4,7 @@ import { FileUp, Loader2, FileText, FileCheck2, AlertCircle, RefreshCw, Download
 import { extractTextFromFile } from '../utils/fileParser'
 import { evaluateReport } from '../utils/aiService'
 import html2canvas from 'html2canvas'
-import jsPDF from 'jspdf'
+import { jsPDF } from 'jspdf'
 
 function AdminDashboard() {
   const [appState, setAppState] = useState('upload') // upload, parsing, ready_for_api, api, results
@@ -128,7 +128,7 @@ function AdminDashboard() {
       
     } catch (err) {
       console.error("PDF generation failed:", err)
-      alert("Failed to generate PDF. Please try again.")
+      alert("Failed to generate PDF. Error: " + (err.message || err.toString()))
       setIsGeneratingPdf(false)
     }
   }
