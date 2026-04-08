@@ -112,12 +112,51 @@ function AdminDashboard() {
       const safeFilename = cleanFilename.replace(/[^a-zA-Z0-9_\- ]/g, "_");
       const fileName = `RDC_Assessment_${safeFilename}.pdf`;
       
-      const element = document.getElementById('report-container-pdf');
+      // Sandbox the DOM inside an iframe to prevent Tailwind v4's "oklch" variables 
+      // from leaking into computed styles and crashing html2canvas.
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'absolute';
+      iframe.style.width = '800px';
+      iframe.style.height = '0';
+      iframe.style.border = 'none';
+      iframe.style.top = '-9999px';
+      document.body.appendChild(iframe);
+
+      const doc = iframe.contentWindow.document;
+      doc.open();
+      doc.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+             body { margin: 0; padding: 20px; font-family: sans-serif; background: #ffffff; }
+             * { box-sizing: border-box; }
+          </style>
+        </head>
+        <body>
+          <div id="pdf-content">
+            ${evaluationResult}
+          </div>
+        </body>
+        </html>
+      `);
+      doc.close();
+
+      // Wait a moment for styles to apply
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      const contentElement = doc.getElementById('pdf-content');
       
-      // Use core libraries directly to prevent wrapper promise hanging
-      const canvas = await html2canvas(element, { scale: 2, useCORS: true, logging: false });
+      const canvas = await html2canvas(contentElement, { 
+        scale: 2, 
+        useCORS: true, 
+        logging: false,
+        backgroundColor: '#ffffff'
+      });
+      
+      document.body.removeChild(iframe);
+
       const imgData = canvas.toDataURL('image/jpeg', 0.98);
-      
       const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
