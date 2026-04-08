@@ -95,7 +95,13 @@ function AdminDashboard() {
       setAssessmentType(interview.assessment_type);
       setFile({ name: `Interview_ID_${interview.join_code}` });
       setSelectedJoinCode(interview.join_code);
-      setAppState('ready_for_api');
+      
+      if (interview.ai_report) {
+          setEvaluationResult(interview.ai_report);
+          setAppState('results');
+      } else {
+          setAppState('ready_for_api');
+      }
   }
 
   const generatePDF = async () => {
@@ -122,8 +128,23 @@ function AdminDashboard() {
       const pdfProps = pdf.getImageProperties(imgData);
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = (pdfProps.height * pdfWidth) / pdfProps.width;
+      const pageHeight = pdf.internal.pageSize.getHeight();
       
-      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+      let heightLeft = pdfHeight;
+      let position = 0;
+
+      // First Page
+      pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, pdfHeight);
+      heightLeft -= pageHeight;
+
+      // Remaining Pages (offsetting the Y position upwards)
+      while (heightLeft > 0) {
+        position -= pageHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, pdfHeight);
+        heightLeft -= pageHeight;
+      }
+      
       pdf.save(fileName);
       setIsGeneratingPdf(false);
       
@@ -408,8 +429,10 @@ function AdminDashboard() {
                                                   navigator.clipboard.writeText(`${window.location.origin}/?code=${inv.join_code}`);
                                                   alert("Candidate Link copied to clipboard!");
                                               }} className="text-slate-400 hover:text-white text-sm bg-slate-800 px-3 py-1.5 rounded border border-slate-700 h-8">Copy Link</button>
+                                          ) : inv.ai_report ? (
+                                              <button onClick={() => loadSubmission(inv)} className="text-white text-sm bg-blue-600 hover:bg-blue-500 px-4 py-1.5 rounded font-semibold shadow-lg h-8 border border-blue-500/50">View Cached Report →</button>
                                           ) : (
-                                              <button onClick={() => loadSubmission(inv)} className="text-white text-sm bg-brand-600 hover:bg-brand-500 px-4 py-1.5 rounded font-semibold shadow-lg h-8">Evaluate AI →</button>
+                                              <button onClick={() => loadSubmission(inv)} className="text-white text-sm bg-brand-600 hover:bg-brand-500 px-4 py-1.5 rounded font-semibold shadow-lg h-8">Evaluate AI ✨</button>
                                           )}
                                           <button 
                                               onClick={() => deleteInterview(inv.join_code)}
@@ -520,9 +543,19 @@ function AdminDashboard() {
 
             <div 
               id="report-container-pdf"
-              className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm text-slate-800"
-              dangerouslySetInnerHTML={{ __html: evaluationResult }}
-            />
+              className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm text-slate-800"
+            >
+              <div dangerouslySetInnerHTML={{ __html: evaluationResult }} />
+              
+              {reportText && (
+                <div className="mt-12 pt-8 border-t border-slate-200">
+                    <h3 className="text-2xl font-bold text-slate-800 mb-6 pb-2 border-b-2 border-brand-500 inline-block">Appendix: Original Interview Transcript</h3>
+                    <div className="whitespace-pre-wrap font-mono text-sm leading-relaxed text-slate-700 bg-slate-50 p-6 rounded-lg border border-slate-200">
+                        {reportText}
+                    </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </main>
