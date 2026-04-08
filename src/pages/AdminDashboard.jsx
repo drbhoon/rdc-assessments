@@ -116,11 +116,19 @@ function AdminDashboard() {
         margin:       10,
         filename:     fileName,
         image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true },
+        html2canvas:  { scale: 2, useCORS: true, logging: true },
         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
       };
 
-      html2pdf().from(element).set(opt).save().then(() => setIsGeneratingPdf(false));
+      html2pdf().from(element).set(opt).save()
+        .then(() => {
+            setIsGeneratingPdf(false);
+        })
+        .catch((err) => {
+            console.error("html2pdf async error:", err);
+            alert("PDF generation encountered an error. Please try again.");
+            setIsGeneratingPdf(false);
+        });
     } catch (err) {
       console.error("PDF generation failed:", err)
       alert("Failed to generate PDF. Please try again.")
@@ -514,7 +522,7 @@ function AdminDashboard() {
 
             <div 
               id="report-container-pdf"
-              className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm overflow-x-auto text-slate-800"
+              className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm text-slate-800"
               dangerouslySetInnerHTML={{ __html: evaluationResult }}
             />
           </div>
