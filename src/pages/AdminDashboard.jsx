@@ -89,6 +89,17 @@ function AdminDashboard() {
       } catch (e) { alert("Failed to delete interview"); }
   }
 
+  const getCorrectHeading = (type) => {
+    switch(type) {
+      case 'ops': return 'Trainee Report Assessment - Operations';
+      case 'sales': return 'Trainee Report Assessment - Sales';
+      case 'recruitment': return 'Candidate Recruitment Assessment - Fresher';
+      case 'sales_recruitment': return 'Candidate Recruitment Assessment - Sales';
+      case 'kaushal_mm': return 'Kaushal - MM Assessment';
+      default: return 'Assessment Report';
+    }
+  }
+
   const loadSubmission = (interview) => {
       if (interview.status !== 'completed') return alert("Candidate hasn't finished yet!");
       setReportText(interview.transcript_answers?.raw || "");
@@ -97,7 +108,8 @@ function AdminDashboard() {
       setSelectedJoinCode(interview.join_code);
       
       if (interview.ai_report) {
-          setEvaluationResult(interview.ai_report);
+          const cleanReport = interview.ai_report.replace(/<h1[^>]*>.*?<\/h1>/i, `<h1 style="margin: 0; color: #2E7D32;">${getCorrectHeading(interview.assessment_type)}</h1>`);
+          setEvaluationResult(cleanReport);
           setAppState('results');
       } else {
           setAppState('ready_for_api');
@@ -124,27 +136,21 @@ function AdminDashboard() {
       // This makes it completely immune to Tailwind CSS's oklch variable parsing crash.
       const imgData = await toJpeg(element, { quality: 0.98, backgroundColor: '#ffffff', pixelRatio: 2 });
       
-      const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
-      const pdfProps = pdf.getImageProperties(imgData);
-      const pdfWidth = pdf.internal.pageSize.getWidth();
+      // Calculate real image aspect ratio and height mapped to A4 width
+      const dummyPdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+      const pdfProps = dummyPdf.getImageProperties(imgData);
+      const pdfWidth = dummyPdf.internal.pageSize.getWidth();
       const pdfHeight = (pdfProps.height * pdfWidth) / pdfProps.width;
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      
-      let heightLeft = pdfHeight;
-      let position = 0;
 
-      // First Page
-      pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, pdfHeight);
-      heightLeft -= pageHeight;
-
-      // Remaining Pages (offsetting the Y position upwards)
-      while (heightLeft > 0) {
-        position -= pageHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, pdfHeight);
-        heightLeft -= pageHeight;
-      }
+      // Use a custom format array to ensure the PDF is ONE single continuous vertical scrolling page.
+      // This completely eliminates clipping lines, seams, or page break rendering glitches.
+      const pdf = new jsPDF({ 
+          unit: 'mm', 
+          format: [pdfWidth, pdfHeight], 
+          orientation: 'portrait' 
+      });
       
+      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
       pdf.save(fileName);
       setIsGeneratingPdf(false);
       
@@ -211,13 +217,15 @@ function AdminDashboard() {
                method: 'POST',
                headers: { 'Content-Type': 'application/json' },
                body: JSON.stringify({ ai_report: result })
-           });
-           fetchInterviews(); // refresh the list
+           }).catch(err => console.error("Could not cache to DB", err));
         }
       }
 
-      setEvaluationResult(result)
-      setAppState('results')
+      // Enforce the correct contextual heading dynamically using a regex replace.
+      const cleanedResult = result.replace(/<h1[^>]*>.*?<\/h1>/i, `<h1 style="margin: 0; color: #2E7D32;">${getCorrectHeading(typeToEvaluate)}</h1>`);
+
+      setEvaluationResult(cleanedResult);
+      setAppState('results');
     } catch (err) {
       setError(err.message)
       // Only go back to ready_for_api if we have a file, otherwise back to upload
