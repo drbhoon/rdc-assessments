@@ -378,21 +378,9 @@ function AdminDashboard() {
           <div className="bg-slate-800/80 p-8 rounded-2xl border border-slate-700/50 shadow-2xl max-w-4xl mx-auto text-left">
               <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-700">
                   <h2 className="text-2xl font-bold text-white">Remote Interview Management</h2>
-                  <div className="flex gap-3 items-center">
-                      <select 
-                          value={linkType} 
-                          onChange={(e) => setLinkType(e.target.value)} 
-                          className="bg-slate-900 border border-slate-700 text-white rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-brand-500"
-                      >
-                          <option value="recruitment">Fresher Trainee</option>
-                          <option value="sales_recruitment">Sales Trainee</option>
-                          <option value="kaushal_mm">Kaushal MM</option>
-                          <option value="kaushal_tech">Kaushal Technical</option>
-                      </select>
-                      <button onClick={() => generateLink(linkType)} className="px-5 py-2 bg-brand-600 hover:bg-brand-500 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap shadow-lg">
-                          Generate Link
-                      </button>
-                  </div>
+                  <button onClick={() => generateLink(assessmentType)} className="px-5 py-2 bg-brand-600 hover:bg-brand-500 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap shadow-lg">
+                      + Generate Link
+                  </button>
               </div>
 
               {(() => {
