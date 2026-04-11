@@ -66,7 +66,7 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
       const tough = pickRandom(kaushalTechQuestions.Tough || [], 2);
       // Return just the question strings, shuffled so difficulty isn't predictable by position
       const allSelected = [...easy, ...medium, ...tough].sort(() => 0.5 - Math.random());
-      return allSelected.map(q => `[${q.type}] ${q.question}`);
+      return allSelected.map(q => q.question);
     }
     return FRESHER_QUESTIONS;
   }, [assessmentType]);

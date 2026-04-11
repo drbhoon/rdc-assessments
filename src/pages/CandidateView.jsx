@@ -118,18 +118,12 @@ export default function CandidateView() {
 
     if (submitted) {
         return (
-            <div className="min-h-screen bg-slate-900 text-slate-100 font-sans p-6 md:p-12 selection:bg-brand-500/30">
-                 <div className="max-w-3xl mx-auto bg-slate-800/80 p-8 rounded-2xl border border-slate-700/50 shadow-2xl text-center">
+            <div className="min-h-screen bg-slate-900 text-slate-100 font-sans flex items-center justify-center p-6">
+                 <div className="max-w-lg w-full bg-slate-800/80 p-10 rounded-2xl border border-slate-700/50 shadow-2xl text-center">
                     <CheckCircle className="text-brand-500 mx-auto mb-6" size={64} />
-                    <h1 className="text-3xl font-bold text-white mb-4">Interview Submitted!</h1>
-                    <p className="text-slate-400 mb-8">Thank you for completing the RDC Assessment. Your answers have been securely recorded and sent to the HR team. You may now close this window.</p>
-                    
-                    <div className="text-left bg-slate-900 rounded-xl p-6 border border-slate-700/50 overflow-y-auto max-h-96 w-full">
-                        <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4 border-b border-slate-700 pb-2">Your Recorded Transcript</h3>
-                        <pre className="font-mono text-sm text-slate-300 whitespace-pre-wrap">
-                            {interviewData.transcript_answers?.raw || "No transcript data available."}
-                        </pre>
-                    </div>
+                    <h1 className="text-3xl font-bold text-white mb-4">Assessment Submitted!</h1>
+                    <p className="text-slate-400 text-lg leading-relaxed">Thank you for completing the RDC Assessment. Your responses have been securely recorded.</p>
+                    <p className="mt-4 text-slate-500 text-sm">You may now close this window.</p>
                 </div>
             </div>
         )
@@ -141,8 +135,10 @@ export default function CandidateView() {
                 <img src="/rdc_logo.png" alt="RDC Logo" className="h-10 object-contain" />
                 <div className="text-right">
                     <span className="text-sm font-semibold text-brand-400 bg-brand-500/10 px-3 py-1 rounded-full border border-brand-500/20">
-                        {interviewData.assessment_type === 'sales_recruitment' ? 'Sales Candidate' 
-                         : interviewData.assessment_type === 'kaushal_mm' ? 'Kaushal Material Management' : 'Fresher Candidate'} 
+                        {interviewData.assessment_type === 'sales_recruitment' ? 'Sales Recruitment' 
+                         : interviewData.assessment_type === 'kaushal_mm' ? 'Kaushal – Material Management' 
+                         : interviewData.assessment_type === 'kaushal_tech' ? 'Kaushal Technical – Concrete'
+                         : 'Fresher Candidate'} 
                         &nbsp;•&nbsp; {interviewData.join_code}
                     </span>
                  </div>

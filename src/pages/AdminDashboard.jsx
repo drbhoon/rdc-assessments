@@ -395,68 +395,67 @@ function AdminDashboard() {
                   </div>
               </div>
 
-              {fetchingRemote ? (
-                  <div className="flex justify-center p-8"><Loader2 className="animate-spin text-brand-500" size={32}/></div>
-              ) : interviews.length === 0 ? (
-                  <div className="text-center p-8 text-slate-500">No remote candidates generated yet.</div>
-              ) : (
-                  <div className="overflow-x-auto rounded-xl border border-slate-700/50">
-                      <table className="w-full text-left bg-slate-900 border-collapse">
-                          <thead>
-                              <tr className="bg-slate-950/50 text-slate-400 text-sm border-b border-slate-700/50">
-                                  <th className="p-4 font-semibold">Join Code</th>
-                                  <th className="p-4 font-semibold">Role</th>
-                                  <th className="p-4 font-semibold">Created</th>
-                                  <th className="p-4 font-semibold">Status</th>
-                                  <th className="p-4 font-semibold">Name</th>
-                                  <th className="p-4 font-semibold text-right">Action</th>
-                              </tr>
-                          </thead>
-                          <tbody>
-                              {interviews.map(inv => (
-                                  <tr key={inv.id} className="border-b border-slate-800 hover:bg-slate-800/50 transition-colors group">
-                                      <td className="p-4 font-mono font-bold text-brand-400">{inv.join_code}</td>
-                                      <td className="p-4 text-slate-300">
-                                          {inv.assessment_type === 'sales_recruitment' ? 'Sales' : inv.assessment_type === 'kaushal_mm' ? 'Kaushal MM' : inv.assessment_type === 'kaushal_tech' ? 'Kaushal Tech' : 'Fresher'}
-                                      </td>
-                                      <td className="p-4 text-slate-400 text-sm">{new Date(inv.created_at).toLocaleDateString()}</td>
-                                      <td className="p-4">
-                                          {inv.status === 'completed' 
-                                              ? <span className="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 rounded-full text-xs font-bold border border-emerald-500/20">COMPLETED</span>
-                                              : <span className="px-2.5 py-1 bg-amber-500/10 text-amber-400 rounded-full text-xs font-bold border border-amber-500/20">PENDING</span>
-                                          }
-                                      </td>
-                                      <td className="p-4 font-medium text-slate-300">
-                                          {inv.status === 'completed' && inv.transcript_answers?.raw 
-                                              ? extractName(inv.transcript_answers.raw) || "Candidate"
-                                              : "-"
-                                          }
-                                      </td>
-                                      <td className="p-4 text-right flex items-center justify-end gap-2 h-full">
-                                          {inv.status === 'pending' ? (
-                                              <button onClick={() => {
-                                                  navigator.clipboard.writeText(`${window.location.origin}/?code=${inv.join_code}`);
-                                                  alert("Candidate Link copied to clipboard!");
-                                              }} className="text-slate-400 hover:text-white text-sm bg-slate-800 px-3 py-1.5 rounded border border-slate-700 h-8">Copy Link</button>
-                                          ) : inv.ai_report ? (
-                                              <button onClick={() => loadSubmission(inv)} className="text-white text-sm bg-blue-600 hover:bg-blue-500 px-4 py-1.5 rounded font-semibold shadow-lg h-8 border border-blue-500/50">View Cached Report →</button>
-                                          ) : (
-                                              <button onClick={() => loadSubmission(inv)} className="text-white text-sm bg-brand-600 hover:bg-brand-500 px-4 py-1.5 rounded font-semibold shadow-lg h-8">Evaluate AI ✨</button>
-                                          )}
-                                          <button 
-                                              onClick={() => deleteInterview(inv.join_code)}
-                                              className="text-red-400 hover:text-red-300 hover:bg-red-500/20 p-1.5 rounded transition-colors h-8 flex items-center justify-center cursor-pointer ml-2"
-                                              title="Delete record"
-                                          >
-                                              <Trash2 size={16} />
-                                          </button>
-                                      </td>
+              {(() => {
+                  const filteredInterviews = interviews.filter(inv => inv.assessment_type === assessmentType);
+                  return fetchingRemote ? (
+                      <div className="flex justify-center p-8"><Loader2 className="animate-spin text-brand-500" size={32}/></div>
+                  ) : filteredInterviews.length === 0 ? (
+                      <div className="text-center p-8 text-slate-500">No candidates found for this assessment type yet. Generate a link above to get started.</div>
+                  ) : (
+                      <div className="overflow-x-auto rounded-xl border border-slate-700/50">
+                          <table className="w-full text-left bg-slate-900 border-collapse">
+                              <thead>
+                                  <tr className="bg-slate-950/50 text-slate-400 text-sm border-b border-slate-700/50">
+                                      <th className="p-4 font-semibold">Join Code</th>
+                                      <th className="p-4 font-semibold">Created</th>
+                                      <th className="p-4 font-semibold">Status</th>
+                                      <th className="p-4 font-semibold">Name</th>
+                                      <th className="p-4 font-semibold text-right">Action</th>
                                   </tr>
-                              ))}
-                          </tbody>
-                      </table>
-                  </div>
-              )}
+                              </thead>
+                              <tbody>
+                                  {filteredInterviews.map(inv => (
+                                      <tr key={inv.id} className="border-b border-slate-800 hover:bg-slate-800/50 transition-colors group">
+                                          <td className="p-4 font-mono font-bold text-brand-400">{inv.join_code}</td>
+                                          <td className="p-4 text-slate-400 text-sm">{new Date(inv.created_at).toLocaleDateString()}</td>
+                                          <td className="p-4">
+                                              {inv.status === 'completed' 
+                                                  ? <span className="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 rounded-full text-xs font-bold border border-emerald-500/20">COMPLETED</span>
+                                                  : <span className="px-2.5 py-1 bg-amber-500/10 text-amber-400 rounded-full text-xs font-bold border border-amber-500/20">PENDING</span>
+                                              }
+                                          </td>
+                                          <td className="p-4 font-medium text-slate-300">
+                                              {inv.status === 'completed' && inv.transcript_answers?.raw 
+                                                  ? extractName(inv.transcript_answers.raw) || "Candidate"
+                                                  : "-"
+                                              }
+                                          </td>
+                                          <td className="p-4 text-right flex items-center justify-end gap-2 h-full">
+                                              {inv.status === 'pending' ? (
+                                                  <button onClick={() => {
+                                                      navigator.clipboard.writeText(`${window.location.origin}/?code=${inv.join_code}`);
+                                                      alert("Candidate Link copied to clipboard!");
+                                                  }} className="text-slate-400 hover:text-white text-sm bg-slate-800 px-3 py-1.5 rounded border border-slate-700 h-8">Copy Link</button>
+                                              ) : inv.ai_report ? (
+                                                  <button onClick={() => loadSubmission(inv)} className="text-white text-sm bg-blue-600 hover:bg-blue-500 px-4 py-1.5 rounded font-semibold shadow-lg h-8 border border-blue-500/50">View Cached Report →</button>
+                                              ) : (
+                                                  <button onClick={() => loadSubmission(inv)} className="text-white text-sm bg-brand-600 hover:bg-brand-500 px-4 py-1.5 rounded font-semibold shadow-lg h-8">Evaluate AI ✨</button>
+                                              )}
+                                              <button 
+                                                  onClick={() => deleteInterview(inv.join_code)}
+                                                  className="text-red-400 hover:text-red-300 hover:bg-red-500/20 p-1.5 rounded transition-colors h-8 flex items-center justify-center cursor-pointer ml-2"
+                                                  title="Delete record"
+                                              >
+                                                  <Trash2 size={16} />
+                                              </button>
+                                          </td>
+                                      </tr>
+                                  ))}
+                              </tbody>
+                          </table>
+                      </div>
+                  );
+              })()}
           </div>
         )}
 
