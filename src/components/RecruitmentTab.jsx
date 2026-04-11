@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Mic, MicOff, ChevronRight, ChevronLeft, CheckCircle2, User, GraduationCap, Calendar, MapPin, Send, AlertCircle } from 'lucide-react';
+import { kaushalTechQuestions } from '../data/kaushalTechQuestions';
 
 const FRESHER_QUESTIONS = [
   "What are your short term and long term goals?",
@@ -49,12 +50,23 @@ const KAUSHAL_ALL_QUESTIONS = [
   "Vendor not approved but urgent requirement. Action?"
 ];
 
+// Helper: shuffle array and pick N items
+const pickRandom = (arr, n) => [...arr].sort(() => 0.5 - Math.random()).slice(0, n);
+
 export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment' }) {
   const questions = useMemo(() => {
     if (assessmentType === 'sales_recruitment') return SALES_QUESTIONS;
     if (assessmentType === 'kaushal_mm') {
-      const shuffled = [...KAUSHAL_ALL_QUESTIONS].sort(() => 0.5 - Math.random());
-      return shuffled.slice(0, 10);
+      return pickRandom(KAUSHAL_ALL_QUESTIONS, 10);
+    }
+    if (assessmentType === 'kaushal_tech') {
+      // Strict distribution: 4 Easy, 4 Medium, 2 Tough
+      const easy = pickRandom(kaushalTechQuestions.Easy || [], 4);
+      const medium = pickRandom(kaushalTechQuestions.Medium || [], 4);
+      const tough = pickRandom(kaushalTechQuestions.Tough || [], 2);
+      // Return just the question strings, shuffled so difficulty isn't predictable by position
+      const allSelected = [...easy, ...medium, ...tough].sort(() => 0.5 - Math.random());
+      return allSelected.map(q => `[${q.type}] ${q.question}`);
     }
     return FRESHER_QUESTIONS;
   }, [assessmentType]);

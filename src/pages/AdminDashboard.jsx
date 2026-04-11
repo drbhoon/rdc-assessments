@@ -37,9 +37,10 @@ function AdminDashboard() {
   // V5 Remote Recruitment States
   const [interviews, setInterviews] = useState([]);
   const [fetchingRemote, setFetchingRemote] = useState(false);
+  const [linkType, setLinkType] = useState('recruitment');
 
   useEffect(() => {
-     if (assessmentType === 'recruitment' || assessmentType === 'sales_recruitment' || assessmentType === 'kaushal_mm') {
+     if (assessmentType === 'recruitment' || assessmentType === 'sales_recruitment' || assessmentType === 'kaushal_mm' || assessmentType === 'kaushal_tech') {
          fetchInterviews();
      }
   }, [assessmentType])
@@ -96,6 +97,7 @@ function AdminDashboard() {
       case 'recruitment': return 'Candidate Recruitment Assessment - Fresher';
       case 'sales_recruitment': return 'Candidate Recruitment Assessment - Sales';
       case 'kaushal_mm': return 'Kaushal - MM Assessment';
+      case 'kaushal_tech': return 'Kaushal Technical Assessment - Concrete Technology';
       default: return 'Assessment Report';
     }
   }
@@ -123,7 +125,7 @@ function AdminDashboard() {
       let cleanFilename = "Candidate";
       if (file?.name) {
           cleanFilename = file.name.replace(/\.[^/.]+$/, "");
-      } else if (assessmentType === 'recruitment' || assessmentType === 'sales_recruitment' || assessmentType === 'kaushal_mm') {
+      } else if (assessmentType === 'recruitment' || assessmentType === 'sales_recruitment' || assessmentType === 'kaushal_mm' || assessmentType === 'kaushal_tech') {
           cleanFilename = "Interview_Transcript";
       }
 
@@ -304,39 +306,34 @@ function AdminDashboard() {
           </p>
         </div>
 
-        {/* Assessment Type Tabs */}
+        {/* Scalable Assessment Type Navigation */}
         {appState !== 'results' && (
-          <div className="flex items-center mt-6 w-full gap-2 p-1.5 bg-slate-900 rounded-xl max-w-4xl mx-auto border border-slate-800 overflow-x-auto hide-scrollbar">
-            <button
-              onClick={() => { setAssessmentType('ops'); handleReset(); }}
-              className={`flex-1 min-w-[150px] py-3 px-4 rounded-lg font-medium text-sm transition-all duration-200 whitespace-nowrap ${assessmentType === 'ops' ? 'bg-brand-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'}`}
+          <div className="flex justify-center mt-6 w-full max-w-sm mx-auto">
+            <select
+                value={assessmentType || ''}
+                onChange={(e) => {
+                    const val = e.target.value;
+                    if (val) {
+                        setAssessmentType(val);
+                        handleReset();
+                    } else {
+                        setAssessmentType(null);
+                    }
+                }}
+                className="w-full bg-slate-900 border-2 border-slate-700 text-white rounded-xl px-4 py-3 text-sm font-semibold focus:outline-none focus:border-brand-500 shadow-xl cursor-pointer"
             >
-              Operations Trainee
-            </button>
-            <button
-              onClick={() => { setAssessmentType('sales'); handleReset(); }}
-              className={`flex-1 min-w-[150px] py-3 px-4 rounded-lg font-medium text-sm transition-all duration-200 whitespace-nowrap ${assessmentType === 'sales' ? 'bg-brand-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'}`}
-            >
-              Sales Trainee
-            </button>
-            <button
-              onClick={() => { setAssessmentType('recruitment'); handleReset(); }}
-              className={`flex-1 min-w-[150px] py-3 px-4 rounded-lg font-medium text-sm transition-all duration-200 whitespace-nowrap ${assessmentType === 'recruitment' ? 'bg-brand-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'}`}
-            >
-              Fresher Recruitment Link
-            </button>
-            <button
-              onClick={() => { setAssessmentType('sales_recruitment'); handleReset(); }}
-              className={`flex-1 min-w-[150px] py-3 px-4 rounded-lg font-medium text-sm transition-all duration-200 whitespace-nowrap ${assessmentType === 'sales_recruitment' ? 'bg-brand-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'}`}
-            >
-              Sales Recruitment Link
-            </button>
-            <button
-              onClick={() => { setAssessmentType('kaushal_mm'); handleReset(); }}
-              className={`flex-1 min-w-[150px] py-3 px-4 rounded-lg font-medium text-sm transition-all duration-200 whitespace-nowrap ${assessmentType === 'kaushal_mm' ? 'bg-brand-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'}`}
-            >
-              Kaushal MM Link
-            </button>
+                <option value="" disabled>-- Select Assessment Dashboard --</option>
+                <optgroup label="Offline PDF Evaluators">
+                    <option value="ops">Operations Trainee Eval</option>
+                    <option value="sales">Sales Trainee Eval</option>
+                </optgroup>
+                <optgroup label="Remote Assessment Links">
+                    <option value="recruitment">Fresher Recruitment</option>
+                    <option value="sales_recruitment">Sales Recruitment</option>
+                    <option value="kaushal_mm">Kaushal MM Validation</option>
+                    <option value="kaushal_tech">Kaushal Technical (Concrete)</option>
+                </optgroup>
+            </select>
           </div>
         )}
 
@@ -377,19 +374,23 @@ function AdminDashboard() {
           </div>
         )}
 
-        {appState === 'upload' && (assessmentType === 'recruitment' || assessmentType === 'sales_recruitment' || assessmentType === 'kaushal_mm') && (
+        {appState === 'upload' && (assessmentType === 'recruitment' || assessmentType === 'sales_recruitment' || assessmentType === 'kaushal_mm' || assessmentType === 'kaushal_tech') && (
           <div className="bg-slate-800/80 p-8 rounded-2xl border border-slate-700/50 shadow-2xl max-w-4xl mx-auto text-left">
               <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-700">
                   <h2 className="text-2xl font-bold text-white">Remote Interview Management</h2>
-                  <div className="flex gap-3">
-                      <button onClick={() => generateLink('recruitment')} className="px-4 py-2 bg-brand-600 hover:bg-brand-500 rounded-lg text-sm font-semibold transition-colors">
-                          + New Fresher Link
-                      </button>
-                      <button onClick={() => generateLink('sales_recruitment')} className="px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded-lg text-sm font-semibold transition-colors">
-                          + New Sales Link
-                      </button>
-                      <button onClick={() => generateLink('kaushal_mm')} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-semibold transition-colors">
-                          + New Kaushal Link
+                  <div className="flex gap-3 items-center">
+                      <select 
+                          value={linkType} 
+                          onChange={(e) => setLinkType(e.target.value)} 
+                          className="bg-slate-900 border border-slate-700 text-white rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-brand-500"
+                      >
+                          <option value="recruitment">Fresher Trainee</option>
+                          <option value="sales_recruitment">Sales Trainee</option>
+                          <option value="kaushal_mm">Kaushal MM</option>
+                          <option value="kaushal_tech">Kaushal Technical</option>
+                      </select>
+                      <button onClick={() => generateLink(linkType)} className="px-5 py-2 bg-brand-600 hover:bg-brand-500 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap shadow-lg">
+                          Generate Link
                       </button>
                   </div>
               </div>
@@ -416,7 +417,7 @@ function AdminDashboard() {
                                   <tr key={inv.id} className="border-b border-slate-800 hover:bg-slate-800/50 transition-colors group">
                                       <td className="p-4 font-mono font-bold text-brand-400">{inv.join_code}</td>
                                       <td className="p-4 text-slate-300">
-                                          {inv.assessment_type === 'sales_recruitment' ? 'Sales' : inv.assessment_type === 'kaushal_mm' ? 'Kaushal MM' : 'Fresher'}
+                                          {inv.assessment_type === 'sales_recruitment' ? 'Sales' : inv.assessment_type === 'kaushal_mm' ? 'Kaushal MM' : inv.assessment_type === 'kaushal_tech' ? 'Kaushal Tech' : 'Fresher'}
                                       </td>
                                       <td className="p-4 text-slate-400 text-sm">{new Date(inv.created_at).toLocaleDateString()}</td>
                                       <td className="p-4">
