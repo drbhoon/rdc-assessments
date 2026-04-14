@@ -221,6 +221,11 @@ function AdminDashboard() {
                headers: { 'Content-Type': 'application/json' },
                body: JSON.stringify({ ai_report: result })
            }).catch(err => console.error("Could not cache to DB", err));
+           
+           // Update local state to immediately mark this interview as evaluated
+           setInterviews(prev => prev.map(inv => 
+               inv.join_code === selectedJoinCode ? { ...inv, ai_report: result } : inv
+           ));
         }
       }
 
