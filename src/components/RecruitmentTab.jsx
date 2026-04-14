@@ -84,6 +84,23 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef(null);
 
+  const [timeLeft, setTimeLeft] = useState(1200); // 20 minutes
+
+  // Timer Effect
+  useEffect(() => {
+    if (step > 0 && step <= questions.length && timeLeft > 0) {
+      const timerId = setInterval(() => {
+        setTimeLeft(prev => prev - 1);
+      }, 1000);
+      return () => clearInterval(timerId);
+    } else if (timeLeft === 0 && step <= questions.length) {
+      // Auto-submit when timer hits 0
+      if (isListening) toggleListen();
+      compileAndSubmit();
+      setStep(questions.length + 1); // move past questions
+    }
+  }, [step, timeLeft, questions.length]);
+
   // Initialize Speech Recognition
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -274,12 +291,26 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
         {/* STEP 1-N: QUESTIONS */}
         {step > 0 && step <= questions.length && (
             <div className="animate-in fade-in slide-in-from-right-4 duration-300 flex flex-col h-full">
-                <div className="mb-2 text-brand-400 font-semibold tracking-wider text-sm uppercase">
-                    Question {step} of {questions.length}
+                <div className="flex justify-between items-start gap-4 mb-6">
+                    <div>
+                        <div className="mb-2 text-brand-400 font-semibold tracking-wider text-sm uppercase">
+                            Question {step} of {questions.length}
+                        </div>
+                        <h2 className="text-xl md:text-2xl font-bold text-white leading-relaxed">
+                            {questions[step - 1]}
+                        </h2>
+                    </div>
+                    <div className="flex flex-col items-center shrink-0">
+                        <div className="relative w-14 h-14 flex items-center justify-center">
+                           <svg className="w-full h-full transform -rotate-90">
+                              <circle cx="28" cy="28" r="24" className="stroke-slate-700" strokeWidth="4" fill="none" />
+                              <circle cx="28" cy="28" r="24" className={timeLeft < 120 ? "stroke-red-500" : "stroke-brand-500"} strokeWidth="4" fill="none" strokeDasharray="150.8" strokeDashoffset={150.8 * (1 - timeLeft / 1200)} style={{ transition: 'stroke-dashoffset 1s linear' }} />
+                           </svg>
+                           <span className={`absolute text-sm font-bold tracking-tighter ${timeLeft < 120 ? "text-red-400" : "text-white"}`}>{Math.floor(timeLeft/60)}:{(timeLeft%60).toString().padStart(2, '0')}</span>
+                        </div>
+                        <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider mt-1">Time Left</span>
+                    </div>
                 </div>
-                <h2 className="text-xl md:text-2xl font-bold text-white mb-6 leading-relaxed">
-                    {questions[step - 1]}
-                </h2>
 
                 <div className="relative flex-1 min-h-[250px] mb-6">
                     <textarea 

@@ -139,7 +139,11 @@ Assessing candidate for "Kaushal – Material Management".
 Instructions:
 Evaluate 10 questions provided in the transcript on a scale of **1-5**.
 Focus heavily on ERP discipline, physical verification, escalation vs root cause, and practical plant challenges.
-Max points: 50.
+
+## SCORING & NORMALIZATION - CRITICAL RULE
+1. First, calculate the raw total score out of 50.
+2. Then, normalize the score to be out of 30 using: Normalized Score = Math.round((Raw Total / 50) * 30).
+3. For the [TOTAL SCORE IN PTS] placeholder in the HTML output, you MUST display the Normalized Score exactly like this: "XX/30" (e.g., "24/30"). Do not output /50 there.
 
 ${HTML_OUTPUT_INSTRUCTIONS}`;
 
@@ -175,7 +179,11 @@ Questions are of three types:
 - Correct reasoning, wrong option = half marks
 - Wrong reasoning = 0
 
-Max Points: 50 (10 questions × 5 marks each).
+## SCORING & NORMALIZATION - CRITICAL RULE
+1. First, calculate the raw total score out of 50 (10 questions × 5 marks each).
+2. Then, normalize the score to be out of 30 using: Normalized Score = Math.round((Raw Total / 50) * 30).
+3. For the [TOTAL SCORE IN PTS] placeholder in the HTML output, you MUST display the Normalized Score exactly like this: "XX/30" (e.g., "24/30"). Do not output /50 there.
+4. Calculate [PERCENTAGE] based on the score.
 
 ## EVALUATION PHILOSOPHY – CRITICAL
 - **DO NOT** expect textbook answers
@@ -237,7 +245,12 @@ CRITICAL RULE: If a candidate suggests an unsafe action OR continues batching wi
 - Evaluate intent and decision-making.
 - Do NOT show model answers.
 - Do NOT penalize grammar or language. Keep evaluation practical.
-- Max points: 50.
+
+## SCORING & NORMALIZATION - CRITICAL RULE
+1. First, calculate the raw total score out of 50.
+2. Then, normalize the score to be out of 30 using: Normalized Score = Math.round((Raw Total / 50) * 30).
+3. For the [TOTAL SCORE IN PTS] placeholder in the HTML output, you MUST display the Normalized Score exactly like this: "XX/30" (e.g., "24/30"). Do not output /50 there.
+4. Calculate [PERCENTAGE] based on the score.
 
 ## OUTPUT REQUIREMENT
 In your report, include:
