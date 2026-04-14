@@ -138,6 +138,7 @@ export default function CandidateView() {
                         {interviewData.assessment_type === 'sales_recruitment' ? 'Sales Recruitment' 
                          : interviewData.assessment_type === 'kaushal_mm' ? 'Kaushal – Material Management' 
                          : interviewData.assessment_type === 'kaushal_tech' ? 'Kaushal Technical – Concrete'
+                         : interviewData.assessment_type === 'kaushal_batching' ? 'Kaushal Batching'
                          : 'Fresher Candidate'} 
                         &nbsp;•&nbsp; {interviewData.join_code}
                     </span>

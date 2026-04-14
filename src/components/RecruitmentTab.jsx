@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Mic, MicOff, ChevronRight, ChevronLeft, CheckCircle2, User, GraduationCap, Calendar, MapPin, Send, AlertCircle } from 'lucide-react';
 import { kaushalTechQuestions } from '../data/kaushalTechQuestions';
+import { kaushalBatchingQuestions } from '../data/kaushalBatchingQuestions';
 
 const FRESHER_QUESTIONS = [
   "What are your short term and long term goals?",
@@ -67,6 +68,10 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
       // Return just the question strings, shuffled so difficulty isn't predictable by position
       const allSelected = [...easy, ...medium, ...tough].sort(() => 0.5 - Math.random());
       return allSelected.map(q => q.question);
+    }
+    if (assessmentType === 'kaushal_batching') {
+      const selected = pickRandom(kaushalBatchingQuestions, 10);
+      return selected.map(q => q.Question);
     }
     return FRESHER_QUESTIONS;
   }, [assessmentType]);

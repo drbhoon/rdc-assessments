@@ -40,7 +40,7 @@ function AdminDashboard() {
   const [linkType, setLinkType] = useState('recruitment');
 
   useEffect(() => {
-     if (assessmentType === 'recruitment' || assessmentType === 'sales_recruitment' || assessmentType === 'kaushal_mm' || assessmentType === 'kaushal_tech') {
+     if (assessmentType === 'recruitment' || assessmentType === 'sales_recruitment' || assessmentType === 'kaushal_mm' || assessmentType === 'kaushal_tech' || assessmentType === 'kaushal_batching') {
          fetchInterviews();
      }
   }, [assessmentType])
@@ -98,6 +98,7 @@ function AdminDashboard() {
       case 'sales_recruitment': return 'Candidate Recruitment Assessment - Sales';
       case 'kaushal_mm': return 'Kaushal - MM Assessment';
       case 'kaushal_tech': return 'Kaushal Technical Assessment - Concrete Technology';
+      case 'kaushal_batching': return 'Kaushal Assessment - Batching Operations';
       default: return 'Assessment Report';
     }
   }
@@ -125,7 +126,7 @@ function AdminDashboard() {
       let cleanFilename = "Candidate";
       if (file?.name) {
           cleanFilename = file.name.replace(/\.[^/.]+$/, "");
-      } else if (assessmentType === 'recruitment' || assessmentType === 'sales_recruitment' || assessmentType === 'kaushal_mm' || assessmentType === 'kaushal_tech') {
+      } else if (assessmentType === 'recruitment' || assessmentType === 'sales_recruitment' || assessmentType === 'kaushal_mm' || assessmentType === 'kaushal_tech' || assessmentType === 'kaushal_batching') {
           cleanFilename = "Interview_Transcript";
       }
 
@@ -332,6 +333,7 @@ function AdminDashboard() {
                     <option value="sales_recruitment">Sales Recruitment</option>
                     <option value="kaushal_mm">Kaushal MM Validation</option>
                     <option value="kaushal_tech">Kaushal Technical (Concrete)</option>
+                    <option value="kaushal_batching">Kaushal Batching</option>
                 </optgroup>
             </select>
           </div>
@@ -374,7 +376,7 @@ function AdminDashboard() {
           </div>
         )}
 
-        {appState === 'upload' && (assessmentType === 'recruitment' || assessmentType === 'sales_recruitment' || assessmentType === 'kaushal_mm' || assessmentType === 'kaushal_tech') && (
+        {appState === 'upload' && (assessmentType === 'recruitment' || assessmentType === 'sales_recruitment' || assessmentType === 'kaushal_mm' || assessmentType === 'kaushal_tech' || assessmentType === 'kaushal_batching') && (
           <div className="bg-slate-800/80 p-8 rounded-2xl border border-slate-700/50 shadow-2xl max-w-4xl mx-auto text-left">
               <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-700">
                   <h2 className="text-2xl font-bold text-white">Remote Interview Management</h2>
@@ -495,7 +497,8 @@ function AdminDashboard() {
                     assessmentType === 'sales' ? 'Sales Report' : 
                     assessmentType === 'recruitment' ? 'Fresher' :
                     assessmentType === 'sales_recruitment' ? 'Sales Recruitment' : 
-                    assessmentType === 'kaushal_mm' ? 'Kaushal MM' : 'Report'
+                    assessmentType === 'kaushal_mm' ? 'Kaushal MM' : 
+                    assessmentType === 'kaushal_batching' ? 'Kaushal Batching' : 'Report'
                 }</span>
                 <span className="text-2xl leading-none">✨</span>
               </button>

@@ -1,0 +1,222 @@
+export const kaushalBatchingQuestions = [
+  {
+    "Question No": 1,
+    "Question": "You are starting batching for the day. What checks will you do before starting?",
+    "Model Answer": "Check plant readiness, materials, correct grade in IDS, indicators working, no pending errors, safe area",
+    "Competency": "Discipline",
+    "Score 5 (Excellent)": "All checks incl safety + system",
+    "Score 4 (Good)": "Most checks covered",
+    "Score 3 (Average)": "Basic checks only",
+    "Score 2 (Weak)": "Misses key checks",
+    "Score 1 (Poor)": "No idea"
+  },
+  {
+    "Question No": 2,
+    "Question": "Material flow is slower than normal. What will you do?",
+    "Model Answer": "Identify material, check blockage/level, do not force batching, inform team",
+    "Competency": "Troubleshooting",
+    "Score 5 (Excellent)": "Correct diagnosis + safe action",
+    "Score 4 (Good)": "Correct action limited depth",
+    "Score 3 (Average)": "Partial response",
+    "Score 2 (Weak)": "Unsafe/incorrect",
+    "Score 1 (Poor)": "No response"
+  },
+  {
+    "Question No": 3,
+    "Question": "Change of silo during operation. What action we should take?",
+    "Model Answer": "Complete previous batch,abort the batch, assign correct silo and start from fresh batch ",
+    "Competency": "Discipline",
+    "Score 5 (Excellent)": "Full sequence correct",
+    "Score 4 (Good)": "Minor gaps",
+    "Score 3 (Average)": "Basic idea",
+    "Score 2 (Weak)": "Incorrect steps",
+    "Score 1 (Poor)": "No idea"
+  },
+  {
+    "Question No": 4,
+    "Question": "IDS shows 1000 kg but indicator shows 950 kg. What will you do?",
+    "Model Answer": "Stop batching, check calibration/load cell, inform QC, avoid wrong dispatch",
+    "Competency": "System Awareness",
+    "Score 5 (Excellent)": "Stops + investigates",
+    "Score 4 (Good)": "Investigates only",
+    "Score 3 (Average)": "Partial concern",
+    "Score 2 (Weak)": "Ignores risk",
+    "Score 1 (Poor)": "No idea"
+  },
+  {
+    "Question No": 5,
+    "Question": "IDS working but ERP not updating. What will you do?",
+    "Model Answer": "Continue safe batching, inform IT, maintain manual record",
+    "Competency": "System Awareness",
+    "Score 5 (Excellent)": "Handles + escalates",
+    "Score 4 (Good)": "Escalates only",
+    "Score 3 (Average)": "Partial response",
+    "Score 2 (Weak)": "Ignores issue",
+    "Score 1 (Poor)": "No idea"
+  },
+  {
+    "Question No": 6,
+    "Question": "IDS screen hangs during batching. What will you do?",
+    "Model Answer": "Pause safely, restart if safe, inform IT, avoid wrong batching",
+    "Competency": "System Awareness",
+    "Score 5 (Excellent)": "Safe stop + restart",
+    "Score 4 (Good)": "Restart attempt only",
+    "Score 3 (Average)": "Partial action",
+    "Score 2 (Weak)": "Unsafe continuation",
+    "Score 1 (Poor)": "No idea"
+  },
+  {
+    "Question No": 7,
+    "Question": "Extra cement discharged. What will you do?",
+    "Model Answer": "Stop batch, inform QC, do not dispatch, follow correction",
+    "Competency": "Error Handling",
+    "Score 5 (Excellent)": "Correct + controlled",
+    "Score 4 (Good)": "Correct but incomplete",
+    "Score 3 (Average)": "Partial response",
+    "Score 2 (Weak)": "Wrong action",
+    "Score 1 (Poor)": "No idea"
+  },
+  {
+    "Question No": 8,
+    "Question": "Wrong SO  selected. What will you do?",
+    "Model Answer": "Stop immediately, inform QC, prevent dispatch",
+    "Competency": "Error Handling",
+    "Score 5 (Excellent)": "Immediate correct action",
+    "Score 4 (Good)": "Correct but slow",
+    "Score 3 (Average)": "Partial",
+    "Score 2 (Weak)": "Unsafe continuation",
+    "Score 1 (Poor)": "No idea"
+  },
+  {
+    "Question No": 9,
+    "Question": "Aggregate less than required. What will you do?",
+    "Model Answer": "Stop batching, check flow/hopper, inform QC",
+    "Competency": "Error Handling",
+    "Score 5 (Excellent)": "Stops + checks",
+    "Score 4 (Good)": "Checks only",
+    "Score 3 (Average)": "Partial",
+    "Score 2 (Weak)": "Ignores",
+    "Score 1 (Poor)": "No idea"
+  },
+  {
+    "Question No": 10,
+    "Question": "Mixer motor trips. What is first action?",
+    "Model Answer": "Stop safely, check overload/blockage, inform maintenance",
+    "Competency": "Troubleshooting",
+    "Score 5 (Excellent)": "Safe + logical",
+    "Score 4 (Good)": "Logical only",
+    "Score 3 (Average)": "Partial",
+    "Score 2 (Weak)": "Repeated restart",
+    "Score 1 (Poor)": "No idea"
+  },
+  {
+    "Question No": 11,
+    "Question": "Aggregate stuck in hopper. What will you do?",
+    "Model Answer": "Stop system, inform, clear safely, resume",
+    "Competency": "Troubleshooting",
+    "Score 5 (Excellent)": "Safe + structured",
+    "Score 4 (Good)": "Correct but basic",
+    "Score 3 (Average)": "Partial",
+    "Score 2 (Weak)": "Unsafe action",
+    "Score 1 (Poor)": "No idea"
+  },
+  {
+    "Question No": 12,
+    "Question": "Power failure during batching. What will you do?",
+    "Model Answer": "Stop, wait restore, check batch before restart",
+    "Competency": "Safety",
+    "Score 5 (Excellent)": "Correct + safe",
+    "Score 4 (Good)": "Correct basic",
+    "Score 3 (Average)": "Partial",
+    "Score 2 (Weak)": "Wrong restart",
+    "Score 1 (Poor)": "No idea"
+  },
+  {
+    "Question No": 13,
+    "Question": "Helper clearing blockage unsafely. What will you do?",
+    "Model Answer": "Stop immediately, ensure safety, inform supervisor",
+    "Competency": "Safety",
+    "Score 5 (Excellent)": "Immediate intervention",
+    "Score 4 (Good)": "Intervenes late",
+    "Score 3 (Average)": "Partial",
+    "Score 2 (Weak)": "Ignores",
+    "Score 1 (Poor)": "No idea"
+  },
+  {
+    "Question No": 14,
+    "Question": "Material spillage during batching. What will you do?",
+    "Model Answer": "Stop/control, identify cause, clean safely",
+    "Competency": "Safety",
+    "Score 5 (Excellent)": "Full control + prevention",
+    "Score 4 (Good)": "Basic control",
+    "Score 3 (Average)": "Partial",
+    "Score 2 (Weak)": "Ignores",
+    "Score 1 (Poor)": "No idea"
+  },
+  {
+    "Question No": 15,
+    "Question": "TM waiting, abnormal readings. What will you do?",
+    "Model Answer": "Do not rush, check readings, inform supervisor",
+    "Competency": "Pressure Handling",
+    "Score 5 (Excellent)": "Resists pressure correctly",
+    "Score 4 (Good)": "Correct but hesitant",
+    "Score 3 (Average)": "Partial",
+    "Score 2 (Weak)": "Compromises quality",
+    "Score 1 (Poor)": "No idea"
+  },
+  {
+    "Question No": 16,
+    "Question": "Customer urgent but plant issue. What will you do?",
+    "Model Answer": "Do not rush unsafe batching, inform, fix issue",
+    "Competency": "Pressure Handling",
+    "Score 5 (Excellent)": "Correct judgement",
+    "Score 4 (Good)": "Basic response",
+    "Score 3 (Average)": "Partial",
+    "Score 2 (Weak)": "Unsafe decision",
+    "Score 1 (Poor)": "No idea"
+  },
+  {
+    "Question No": 17,
+    "Question": "Mixer not discharging properly. What will you do?",
+    "Model Answer": "Stop, check blockage, inform maintenance",
+    "Competency": "Troubleshooting",
+    "Score 5 (Excellent)": "Correct + safe",
+    "Score 4 (Good)": "Correct basic",
+    "Score 3 (Average)": "Partial",
+    "Score 2 (Weak)": "Continues batching",
+    "Score 1 (Poor)": "No idea"
+  },
+  {
+    "Question No": 18,
+    "Question": "Admixture not dosing properly. What will you do?",
+    "Model Answer": "Stop, check system, inform QC",
+    "Competency": "Troubleshooting",
+    "Score 5 (Excellent)": "Correct + QC awareness",
+    "Score 4 (Good)": "Correct basic",
+    "Score 3 (Average)": "Partial",
+    "Score 2 (Weak)": "Ignores",
+    "Score 1 (Poor)": "No idea"
+  },
+  {
+    "Question No": 19,
+    "Question": "Small mismatch noticed. What will you do?",
+    "Model Answer": "Do not ignore, correct, inform QC",
+    "Competency": "Discipline",
+    "Score 5 (Excellent)": "High integrity",
+    "Score 4 (Good)": "Correct basic",
+    "Score 3 (Average)": "Partial",
+    "Score 2 (Weak)": "Ignores",
+    "Score 1 (Poor)": "No idea"
+  },
+  {
+    "Question No": 20,
+    "Question": "System left in error by previous operator. What will you do?",
+    "Model Answer": "Check system, clear errors, safe start",
+    "Competency": "Discipline",
+    "Score 5 (Excellent)": "Full control",
+    "Score 4 (Good)": "Basic check",
+    "Score 3 (Average)": "Partial",
+    "Score 2 (Weak)": "Starts blindly",
+    "Score 1 (Poor)": "No idea"
+  }
+];
