@@ -103,56 +103,62 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
 
   // Initialize Speech Recognition
   useEffect(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      const recognition = new SpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = true; // Use real-time parsing to reduce lag
-      recognition.lang = 'en-IN'; // Optimized for Indian English accents
+    let recognitionInstance = null;
+    try {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true; // Use real-time parsing to reduce lag
+        recognition.lang = 'en-IN'; // Optimized for Indian English accents
 
-      recognition.onresult = (event) => {
-        let finalText = '';
-        let interimText = '';
-        
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          if (event.results[i].isFinal) {
-             finalText += event.results[i][0].transcript + ' ';
-          } else {
-             interimText += event.results[i][0].transcript;
-          }
-        }
-        
-        setInterimTranscript(interimText);
-
-        if (finalText) {
-          setAnswers(prev => {
-            const newAnswers = [...prev];
-            const qIndex = step - 1;
-            if (qIndex >= 0 && qIndex < questions.length) {
-                newAnswers[qIndex] = (newAnswers[qIndex] + ' ' + finalText).trim();
+        recognition.onresult = (event) => {
+          let finalText = '';
+          let interimText = '';
+          
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            if (event.results[i].isFinal) {
+               finalText += event.results[i][0].transcript + ' ';
+            } else {
+               interimText += event.results[i][0].transcript;
             }
-            return newAnswers;
-          });
-        }
-      };
+          }
+          
+          setInterimTranscript(interimText);
 
-      recognition.onerror = (event) => {
-        console.error("Speech error", event.error);
-        setIsListening(false);
-      };
+          if (finalText) {
+            setAnswers(prev => {
+              const newAnswers = [...prev];
+              const qIndex = step - 1;
+              if (qIndex >= 0 && qIndex < questions.length) {
+                  newAnswers[qIndex] = (newAnswers[qIndex] + ' ' + finalText).trim();
+              }
+              return newAnswers;
+            });
+          }
+        };
 
-      recognition.onend = () => {
-        setIsListening(false);
-        setInterimTranscript('');
-      };
+        recognition.onerror = (event) => {
+          console.error("Speech error", event.error);
+          setIsListening(false);
+        };
 
-      recognitionRef.current = recognition;
+        recognition.onend = () => {
+          setIsListening(false);
+          setInterimTranscript('');
+        };
+
+        recognitionRef.current = recognition;
+        recognitionInstance = recognition;
+      }
+    } catch (err) {
+      console.warn("Speech Recognition initialization failed (likely unsupported by this mobile browser variant):", err);
     }
     
     // Cleanup when unmounting or changing step
     return () => {
-        if (isListening && recognitionRef.current) {
-            recognitionRef.current.stop();
+        if (isListening && recognitionInstance) {
+            try { recognitionInstance.stop(); } catch(e){}
             setIsListening(false);
         }
     }
