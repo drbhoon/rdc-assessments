@@ -1,7 +1,25 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Mic, MicOff, ChevronRight, ChevronLeft, CheckCircle2, User, GraduationCap, Calendar, MapPin, Send, AlertCircle } from 'lucide-react';
+import { Mic, MicOff, ChevronRight, ChevronLeft, CheckCircle2, User, GraduationCap, Calendar, MapPin, Send, AlertCircle, Languages } from 'lucide-react';
 import { kaushalTechQuestions } from '../data/kaushalTechQuestions';
 import { kaushalBatchingQuestions } from '../data/kaushalBatchingQuestions';
+
+// All major Indian languages supported by the Web Speech API (BCP-47 tags)
+const INDIAN_LANGUAGES = [
+  { label: 'English (India)',    value: 'en-IN' },
+  { label: 'Hindi',              value: 'hi-IN' },
+  { label: 'Tamil',              value: 'ta-IN' },
+  { label: 'Telugu',             value: 'te-IN' },
+  { label: 'Kannada',            value: 'kn-IN' },
+  { label: 'Malayalam',          value: 'ml-IN' },
+  { label: 'Bengali',            value: 'bn-IN' },
+  { label: 'Gujarati',           value: 'gu-IN' },
+  { label: 'Marathi',            value: 'mr-IN' },
+  { label: 'Punjabi',            value: 'pa-IN' },
+  { label: 'Odia',               value: 'or-IN' },
+  { label: 'Urdu',               value: 'ur-IN' },
+  { label: 'Assamese',           value: 'as-IN' },
+  { label: 'Kashmiri',           value: 'ks-IN' },
+];
 
 const FRESHER_QUESTIONS = [
   "What are your short term and long term goals?",
@@ -78,6 +96,7 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
 
   const [step, setStep] = useState(0); // 0 = details, 1-N = questions
   const [details, setDetails] = useState({ name: '', qualification: '', dob: '', hometown: '' });
+  const [selectedLang, setSelectedLang] = useState('en-IN'); // BCP-47 tag for speech recognition
   const [answers, setAnswers] = useState(Array(questions.length).fill(''));
   const [interimTranscript, setInterimTranscript] = useState('');
   
@@ -110,7 +129,7 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
         const recognition = new SpeechRecognition();
         recognition.continuous = true;
         recognition.interimResults = true; // Use real-time parsing to reduce lag
-        recognition.lang = 'en-IN'; // Optimized for Indian English accents
+        recognition.lang = selectedLang; // Set by candidate's language selection
 
         recognition.onresult = (event) => {
           let finalText = '';
@@ -162,7 +181,7 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
             setIsListening(false);
         }
     }
-  }, [step, questions.length]); // Added questions.length to dependencies
+  }, [step, questions.length, selectedLang]); // Re-init when language or step changes
 
   const toggleListen = () => {
     if (!recognitionRef.current) {
@@ -283,6 +302,23 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
                     <div className="relative">
                         <MapPin className="absolute left-3 top-3 text-slate-500" size={20} />
                         <input type="text" name="hometown" value={details.hometown} onChange={handleDetailsChange} placeholder="Hometown" className="w-full bg-slate-900 border border-slate-700 rounded-lg py-3 pl-10 pr-4 text-white focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500" />
+                    </div>
+
+                    {/* Language Selector */}
+                    <div className="relative">
+                        <Languages className="absolute left-3 top-3 text-slate-500" size={20} />
+                        <select
+                            value={selectedLang}
+                            onChange={(e) => setSelectedLang(e.target.value)}
+                            className="w-full bg-slate-900 border border-slate-700 rounded-lg py-3 pl-10 pr-4 text-slate-300 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 cursor-pointer appearance-none"
+                        >
+                            {INDIAN_LANGUAGES.map(lang => (
+                                <option key={lang.value} value={lang.value}>{lang.label}</option>
+                            ))}
+                        </select>
+                        <p className="text-xs text-slate-500 mt-1 pl-1">
+                            Select your preferred language for voice input during the interview.
+                        </p>
                     </div>
                 </div>
 
