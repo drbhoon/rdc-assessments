@@ -79,13 +79,9 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
       return pickRandom(KAUSHAL_ALL_QUESTIONS, 10);
     }
     if (assessmentType === 'kaushal_tech') {
-      // Strict distribution: 4 Easy, 4 Medium, 2 Tough
-      const easy = pickRandom(kaushalTechQuestions.Easy || [], 4);
-      const medium = pickRandom(kaushalTechQuestions.Medium || [], 4);
-      const tough = pickRandom(kaushalTechQuestions.Tough || [], 2);
-      // Return just the question strings, shuffled so difficulty isn't predictable by position
-      const allSelected = [...easy, ...medium, ...tough].sort(() => 0.5 - Math.random());
-      return allSelected.map(q => q.question);
+      // Pick 10 random questions from the flat array
+      const selected = pickRandom(kaushalTechQuestions, 10);
+      return selected.map(q => q.question);
     }
     if (assessmentType === 'kaushal_batching') {
       const selected = pickRandom(kaushalBatchingQuestions, 10);

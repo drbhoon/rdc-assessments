@@ -155,7 +155,7 @@ Candidates come from ALL functions: Plant, QC, Sales, Finance, Logistics. Most a
 This is a LEARNING assessment — not a filter exam. Reward plant-awareness and practical logic.
 
 ## QUESTION STRUCTURE
-You will receive 10 questions in the transcript (4 Easy, 4 Medium, 2 Tough).
+You will receive 10 questions in the transcript (drawn randomly from a pool of 55 Moderate questions).
 Questions are of three types:
 - **Subjective**: Score 1–5
 - **Numerical**: Full marks OR Zero (no partial credit)
