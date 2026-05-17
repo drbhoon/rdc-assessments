@@ -92,6 +92,10 @@ You are evaluating monthly progress reports from Graduate/Diploma Engineer Train
 6. Plan for Next Month
 
 Max Points: 30.
+
+## MINIMUM WORD COUNT RULE - CRITICAL
+If a candidate's answer/entry contains fewer than 10 words (or is completely blank), you MUST award exactly ZERO (0) marks for that specific question or section. No exceptions.
+
 ${HTML_OUTPUT_INSTRUCTIONS}`;
 
 
@@ -107,6 +111,10 @@ Be rigorous and honest.
 6. Plan for Next Month
 
 Max Points: 30.
+
+## MINIMUM WORD COUNT RULE - CRITICAL
+If a candidate's answer/entry contains fewer than 10 words (or is completely blank), you MUST award exactly ZERO (0) marks for that specific question or section. No exceptions.
+
 ${HTML_OUTPUT_INSTRUCTIONS}`;
 
 const SYSTEM_PROMPT_RECRUITMENT = `You are the RMC Operational Auditor evaluating Fresher candidates.
@@ -120,6 +128,9 @@ Verdict threshold for HTML output:
 65% - 74% = BORDERLINE
 < 65% = REJECT
 
+## MINIMUM WORD COUNT RULE - CRITICAL
+If a candidate's answer/entry contains fewer than 10 words (or is completely blank), you MUST award exactly ZERO (0) marks for that specific question or section. No exceptions.
+
 ${HTML_OUTPUT_INSTRUCTIONS}`;
 
 const SYSTEM_PROMPT_SALES_RECRUITMENT = `You are the RDC Sales Auditor evaluating field sales candidates.
@@ -130,6 +141,9 @@ Verdict threshold for HTML output:
 >= 70% = HIRE
 55% - 69% = BORDERLINE
 < 55% = REJECT
+
+## MINIMUM WORD COUNT RULE - CRITICAL
+If a candidate's answer/entry contains fewer than 10 words (or is completely blank), you MUST award exactly ZERO (0) marks for that specific question or section. No exceptions.
 
 ${HTML_OUTPUT_INSTRUCTIONS}`;
 
@@ -144,6 +158,9 @@ Focus heavily on ERP discipline, physical verification, escalation vs root cause
 1. First, calculate the raw total score out of 50.
 2. Then, normalize the score to be out of 30 using: Normalized Score = Math.round((Raw Total / 50) * 30).
 3. For the [TOTAL SCORE IN PTS] placeholder in the HTML output, you MUST display the Normalized Score exactly like this: "XX/30" (e.g., "24/30"). Do not output /50 there.
+
+## MINIMUM WORD COUNT RULE - CRITICAL
+If a candidate's answer/entry contains fewer than 10 words (or is completely blank), you MUST award exactly ZERO (0) marks for that specific question or section. No exceptions.
 
 ${HTML_OUTPUT_INSTRUCTIONS}`;
 
@@ -209,6 +226,9 @@ Verdict threshold:
 50% - 69% = DEVELOPING – Needs Guided Practice
 < 50% = FOUNDATIONAL – Requires Basic Training
 
+## MINIMUM WORD COUNT RULE - CRITICAL
+If a candidate's answer/entry contains fewer than 10 words (or is completely blank), you MUST award exactly ZERO (0) marks for that specific question or section. No exceptions.
+
 ${HTML_OUTPUT_INSTRUCTIONS}`;
 
 const SYSTEM_PROMPT_KAUSHAL_BATCHING = `You are an expert evaluator for Ready Mix Concrete (RMC) plant operations.
@@ -262,6 +282,9 @@ Verdict threshold for Competency Rating:
 70% - 89% = Good
 50% - 69% = Trainable
 < 50% = Needs Immediate Training
+
+## MINIMUM WORD COUNT RULE - CRITICAL
+If a candidate's answer/entry contains fewer than 10 words (or is completely blank), you MUST award exactly ZERO (0) marks for that specific question or section. No exceptions.
 
 ${HTML_OUTPUT_INSTRUCTIONS}`;
 
