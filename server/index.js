@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { Pool } from 'pg';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { evaluateReport } from './aiService.js';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 dotenv.config();
@@ -198,6 +199,22 @@ app.delete('/api/interviews/:code', async (req, res) => {
     } catch (error) {
         console.error("Delete Interview Error:", error);
         res.status(500).json({ error: "Server error deleting interview" });
+    }
+});
+
+// 6. Secure AI evaluation proxy
+app.post('/api/evaluate', async (req, res) => {
+    const { reportText, type } = req.body;
+    if (!reportText) {
+        return res.status(400).json({ error: "reportText required for evaluation" });
+    }
+
+    try {
+        const result = await evaluateReport(reportText, type);
+        res.json({ result });
+    } catch (error) {
+        console.error("AI Evaluation proxy error:", error);
+        res.status(500).json({ error: error.message || "Failed to evaluate report using AI backend proxy." });
     }
 });
 
