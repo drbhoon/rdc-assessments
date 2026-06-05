@@ -1,11 +1,11 @@
-export const evaluateReport = async (reportText, type = 'ops') => {
+export const evaluateReport = async (reportText, type = 'ops', fileData = null, mimeType = null) => {
     try {
         const response = await fetch('/api/evaluate', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ reportText, type }),
+            body: JSON.stringify({ reportText, type, fileData, mimeType }),
         });
 
         if (!response.ok) {

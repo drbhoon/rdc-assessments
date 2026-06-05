@@ -15,6 +15,8 @@ function AdminDashboard() {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
   const [assessmentType, setAssessmentType] = useState(null) // null, ops, sales, recruitment, sales_recruitment
   const [selectedJoinCode, setSelectedJoinCode] = useState(null)
+  const [fileBase64, setFileBase64] = useState(null)
+  const [fileMimeType, setFileMimeType] = useState(null)
   
   // Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -173,11 +175,42 @@ function AdminDashboard() {
     setAppState('parsing')
 
     try {
-      const text = await extractTextFromFile(selectedFile)
-      if (!text || text.trim().length === 0) {
-        throw new Error("No readable text found in the document.")
+      let text = ""
+      let base64Data = null
+      const mimeType = selectedFile.type
+
+      if (selectedFile.type === 'application/pdf' || selectedFile.type.startsWith('image/')) {
+        // Read file as base64 Data URL
+        base64Data = await new Promise((resolve, reject) => {
+          const reader = new FileReader()
+          reader.readAsDataURL(selectedFile)
+          reader.onload = () => resolve(reader.result)
+          reader.onerror = (error) => reject(error)
+        })
+
+        // For PDFs, still try to extract text for client-side preview
+        if (selectedFile.type === 'application/pdf') {
+          try {
+            text = await extractTextFromFile(selectedFile)
+          } catch (e) {
+            console.log("Digital text extraction failed, falling back to base64 OCR:", e)
+          }
+        }
+
+        if (!text || text.trim().length === 0) {
+          text = `[Scanned Document / Image: Visual mode active. Gemini will parse and evaluate the document pages directly.]`
+        }
+      } else {
+        // For DOCX or TXT files
+        text = await extractTextFromFile(selectedFile)
+        if (!text || text.trim().length === 0) {
+          throw new Error("No readable text found in the document.")
+        }
       }
+
       setReportText(text)
+      setFileBase64(base64Data)
+      setFileMimeType(mimeType)
       setAppState('ready_for_api')
     } catch (err) {
       setError(err.message)
@@ -190,7 +223,10 @@ function AdminDashboard() {
     accept: {
       'application/pdf': ['.pdf'],
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
-      'text/plain': ['.txt']
+      'text/plain': ['.txt'],
+      'image/png': ['.png'],
+      'image/jpeg': ['.jpg', '.jpeg'],
+      'image/webp': ['.webp']
     },
     maxFiles: 1
   })
@@ -212,7 +248,7 @@ function AdminDashboard() {
 
       let result = cachedResult;
       if (!result) {
-        result = await evaluateReport(textToEvaluate, typeToEvaluate);
+        result = await evaluateReport(textToEvaluate, typeToEvaluate, fileBase64, fileMimeType);
         
         // Save to DB so it doesn't regenerate
         if (selectedJoinCode) {
@@ -244,6 +280,8 @@ function AdminDashboard() {
   const handleReset = () => {
     setFile(null)
     setReportText('')
+    setFileBase64(null)
+    setFileMimeType(null)
     setEvaluationResult(null)
     setSelectedJoinCode(null)
     setError(null)
@@ -368,7 +406,7 @@ function AdminDashboard() {
               <FileUp size={32} />
             </div>
             <h2 className="text-2xl font-semibold mb-2 text-white">Upload Monthly Report</h2>
-            <p className="text-slate-400 mb-6 max-w-sm mx-auto">Drag & drop a PDF, DOCX, or TXT file here, or click to browse.</p>
+            <p className="text-slate-400 mb-6 max-w-sm mx-auto">Drag & drop a PDF, DOCX, TXT, or Image file here, or click to browse.</p>
             <button className="bg-brand-600 hover:bg-brand-500 text-white px-6 py-3 rounded-xl font-medium transition-all shadow-lg shadow-brand-500/20 pointer-events-none">
               Select File
             </button>

@@ -288,7 +288,7 @@ If a candidate's answer/entry contains fewer than 10 words (or is completely bla
 
 ${HTML_OUTPUT_INSTRUCTIONS}`;
 
-export const evaluateReport = async (reportText, type = 'ops') => {
+export const evaluateReport = async (reportText, type = 'ops', fileData = null, mimeType = null) => {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
         throw new Error('Gemini API Key is not set in environment variables on the backend.');
@@ -309,9 +309,26 @@ export const evaluateReport = async (reportText, type = 'ops') => {
     }
 
     try {
+        let contents;
+        if (fileData && mimeType) {
+            // Strip standard dataURL prefix "data:mime;base64," if present
+            const cleanBase64 = fileData.includes(',') ? fileData.split(',')[1] : fileData;
+            contents = [
+                {
+                    inlineData: {
+                        mimeType: mimeType,
+                        data: cleanBase64
+                    }
+                },
+                "Please evaluate this document according to your system instructions."
+            ];
+        } else {
+            contents = reportText;
+        }
+
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
-            contents: reportText,
+            contents: contents,
             config: {
                 systemInstruction: promptToUse,
                 temperature: 0.1, 

@@ -204,13 +204,13 @@ app.delete('/api/interviews/:code', async (req, res) => {
 
 // 6. Secure AI evaluation proxy
 app.post('/api/evaluate', async (req, res) => {
-    const { reportText, type } = req.body;
-    if (!reportText) {
-        return res.status(400).json({ error: "reportText required for evaluation" });
+    const { reportText, type, fileData, mimeType } = req.body;
+    if (!reportText && !fileData) {
+        return res.status(400).json({ error: "reportText or fileData required for evaluation" });
     }
 
     try {
-        const result = await evaluateReport(reportText, type);
+        const result = await evaluateReport(reportText, type, fileData, mimeType);
         res.json({ result });
     } catch (error) {
         console.error("AI Evaluation proxy error:", error);
