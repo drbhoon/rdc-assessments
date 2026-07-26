@@ -84,8 +84,12 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
       return selected.map(q => q.question);
     }
     if (assessmentType === 'kaushal_batching') {
-      const selected = pickRandom(kaushalBatchingQuestions, 10);
-      return selected.map(q => q.Question);
+      const set1 = kaushalBatchingQuestions.filter(q => q.SET === 1);
+      const set2 = kaushalBatchingQuestions.filter(q => q.SET === 2);
+      const selectedSet1 = pickRandom(set1, 7);
+      const selectedSet2 = pickRandom(set2, 3);
+      const combined = [...selectedSet1, ...selectedSet2].sort(() => 0.5 - Math.random());
+      return combined.map(q => q.Question);
     }
     return FRESHER_QUESTIONS;
   }, [assessmentType]);

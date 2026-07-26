@@ -1,5 +1,6 @@
 export const kaushalBatchingQuestions = [
   {
+    "SET": 1,
     "Question No": 1,
     "Question": "You are starting batching for the day. What checks will you do before starting?",
     "Model Answer": "Check plant readiness, materials, correct grade in IDS, indicators working, no pending errors, safe area",
@@ -11,6 +12,7 @@ export const kaushalBatchingQuestions = [
     "Score 1 (Poor)": "No idea"
   },
   {
+    "SET": 1,
     "Question No": 2,
     "Question": "Material flow is slower than normal. What will you do?",
     "Model Answer": "Identify material, check blockage/level, do not force batching, inform team",
@@ -22,6 +24,7 @@ export const kaushalBatchingQuestions = [
     "Score 1 (Poor)": "No response"
   },
   {
+    "SET": 1,
     "Question No": 3,
     "Question": "Change of silo during operation. What action we should take?",
     "Model Answer": "Complete previous batch,abort the batch, assign correct silo and start from fresh batch ",
@@ -33,6 +36,7 @@ export const kaushalBatchingQuestions = [
     "Score 1 (Poor)": "No idea"
   },
   {
+    "SET": 1,
     "Question No": 4,
     "Question": "IDS shows 1000 kg but indicator shows 950 kg. What will you do?",
     "Model Answer": "Stop batching, check calibration/load cell, inform QC, avoid wrong dispatch",
@@ -44,6 +48,7 @@ export const kaushalBatchingQuestions = [
     "Score 1 (Poor)": "No idea"
   },
   {
+    "SET": 1,
     "Question No": 5,
     "Question": "IDS working but ERP not updating. What will you do?",
     "Model Answer": "Continue safe batching, inform IT, maintain manual record",
@@ -55,6 +60,7 @@ export const kaushalBatchingQuestions = [
     "Score 1 (Poor)": "No idea"
   },
   {
+    "SET": 1,
     "Question No": 6,
     "Question": "IDS screen hangs during batching. What will you do?",
     "Model Answer": "Pause safely, restart if safe, inform IT, avoid wrong batching",
@@ -66,6 +72,7 @@ export const kaushalBatchingQuestions = [
     "Score 1 (Poor)": "No idea"
   },
   {
+    "SET": 1,
     "Question No": 7,
     "Question": "Extra cement discharged. What will you do?",
     "Model Answer": "Stop batch, inform QC, do not dispatch, follow correction",
@@ -77,6 +84,7 @@ export const kaushalBatchingQuestions = [
     "Score 1 (Poor)": "No idea"
   },
   {
+    "SET": 1,
     "Question No": 8,
     "Question": "Wrong SO  selected. What will you do?",
     "Model Answer": "Stop immediately, inform QC, prevent dispatch",
@@ -88,6 +96,7 @@ export const kaushalBatchingQuestions = [
     "Score 1 (Poor)": "No idea"
   },
   {
+    "SET": 1,
     "Question No": 9,
     "Question": "Aggregate less than required. What will you do?",
     "Model Answer": "Stop batching, check flow/hopper, inform QC",
@@ -99,6 +108,7 @@ export const kaushalBatchingQuestions = [
     "Score 1 (Poor)": "No idea"
   },
   {
+    "SET": 1,
     "Question No": 10,
     "Question": "Mixer motor trips. What is first action?",
     "Model Answer": "Stop safely, check overload/blockage, inform maintenance",
@@ -110,6 +120,7 @@ export const kaushalBatchingQuestions = [
     "Score 1 (Poor)": "No idea"
   },
   {
+    "SET": 1,
     "Question No": 11,
     "Question": "Aggregate stuck in hopper. What will you do?",
     "Model Answer": "Stop system, inform, clear safely, resume",
@@ -121,6 +132,7 @@ export const kaushalBatchingQuestions = [
     "Score 1 (Poor)": "No idea"
   },
   {
+    "SET": 1,
     "Question No": 12,
     "Question": "Power failure during batching. What will you do?",
     "Model Answer": "Stop, wait restore, check batch before restart",
@@ -132,6 +144,7 @@ export const kaushalBatchingQuestions = [
     "Score 1 (Poor)": "No idea"
   },
   {
+    "SET": 1,
     "Question No": 13,
     "Question": "Helper clearing blockage unsafely. What will you do?",
     "Model Answer": "Stop immediately, ensure safety, inform supervisor",
@@ -143,6 +156,7 @@ export const kaushalBatchingQuestions = [
     "Score 1 (Poor)": "No idea"
   },
   {
+    "SET": 1,
     "Question No": 14,
     "Question": "Material spillage during batching. What will you do?",
     "Model Answer": "Stop/control, identify cause, clean safely",
@@ -154,6 +168,7 @@ export const kaushalBatchingQuestions = [
     "Score 1 (Poor)": "No idea"
   },
   {
+    "SET": 1,
     "Question No": 15,
     "Question": "TM waiting, abnormal readings. What will you do?",
     "Model Answer": "Do not rush, check readings, inform supervisor",
@@ -165,6 +180,7 @@ export const kaushalBatchingQuestions = [
     "Score 1 (Poor)": "No idea"
   },
   {
+    "SET": 1,
     "Question No": 16,
     "Question": "Customer urgent but plant issue. What will you do?",
     "Model Answer": "Do not rush unsafe batching, inform, fix issue",
@@ -176,6 +192,7 @@ export const kaushalBatchingQuestions = [
     "Score 1 (Poor)": "No idea"
   },
   {
+    "SET": 1,
     "Question No": 17,
     "Question": "Mixer not discharging properly. What will you do?",
     "Model Answer": "Stop, check blockage, inform maintenance",
@@ -187,6 +204,7 @@ export const kaushalBatchingQuestions = [
     "Score 1 (Poor)": "No idea"
   },
   {
+    "SET": 1,
     "Question No": 18,
     "Question": "Admixture not dosing properly. What will you do?",
     "Model Answer": "Stop, check system, inform QC",
@@ -198,6 +216,7 @@ export const kaushalBatchingQuestions = [
     "Score 1 (Poor)": "No idea"
   },
   {
+    "SET": 1,
     "Question No": 19,
     "Question": "Small mismatch noticed. What will you do?",
     "Model Answer": "Do not ignore, correct, inform QC",
@@ -209,6 +228,7 @@ export const kaushalBatchingQuestions = [
     "Score 1 (Poor)": "No idea"
   },
   {
+    "SET": 1,
     "Question No": 20,
     "Question": "System left in error by previous operator. What will you do?",
     "Model Answer": "Check system, clear errors, safe start",
@@ -218,5 +238,125 @@ export const kaushalBatchingQuestions = [
     "Score 3 (Average)": "Partial",
     "Score 2 (Weak)": "Starts blindly",
     "Score 1 (Poor)": "No idea"
+  },
+  {
+    "SET": 2,
+    "Question No": 21,
+    "Question": "The mixer motor current is increasing batch after batch although batch quantity and mix design are unchanged. What will you do?",
+    "Model Answer": "Stop after the current safe cycle, review current trend, inspect concrete buildup, blade/liner wear, bearing drag, gearbox lubrication and supply voltage imbalance. Correct the cause and verify current during no-load and normal-load trials.",
+    "Competency": "Electrical & Mechanical Diagnosis",
+    "Score 5 (Excellent)": "Uses current trend, checks mechanical and electrical causes, repairs and validates under load",
+    "Score 4 (Good)": "Checks major causes and validates, but misses trend or one discipline",
+    "Score 3 (Average)": "Recognizes overload risk and performs limited inspection",
+    "Score 2 (Weak)": "Only resets overload or reduces batch quantity without diagnosis",
+    "Score 1 (Poor)": "No idea or ignores rising current"
+  },
+  {
+    "SET": 2,
+    "Question No": 22,
+    "Question": "Slurry is leaking from the mixer shaft seal and is approaching the bearing housing. What immediate and corrective actions are required?",
+    "Model Answer": "Stop batching before slurry enters the bearing, isolate the mixer, clean the area, inspect seal wear, flushing/greasing arrangement, shaft condition and bearing contamination. Replace damaged parts, restore lubrication, trial-run and monitor leakage.",
+    "Competency": "Mechanical Maintenance",
+    "Score 5 (Excellent)": "Stops before secondary damage, isolates, checks seal system and bearing contamination, repairs and monitors",
+    "Score 4 (Good)": "Repairs the seal and checks bearing but misses lubrication or monitoring",
+    "Score 3 (Average)": "Reports leakage and cleans area with limited diagnosis",
+    "Score 2 (Weak)": "Continues operation until bearing failure or only adds grease",
+    "Score 1 (Poor)": "No response"
+  },
+  {
+    "SET": 2,
+    "Question No": 23,
+    "Question": "The compressor runs continuously but does not reach cut-out pressure. What are your likely checks?",
+    "Model Answer": "Stop nonessential air use, check major leaks, intake filter, belts/coupling, oil level, unloading valve, minimum pressure valve and compressor condition. Do not keep resetting; isolate and repair, then verify cut-in/cut-out operation.",
+    "Competency": "Pneumatic Troubleshooting",
+    "Score 5 (Excellent)": "Checks demand, leaks and compressor components, repairs and verifies control pressures",
+    "Score 4 (Good)": "Finds and repairs the likely issue but misses control verification",
+    "Score 3 (Average)": "Checks for leaks and informs maintenance",
+    "Score 2 (Weak)": "Keeps compressor running continuously or only increases setpoint",
+    "Score 1 (Poor)": "No idea"
+  },
+  {
+    "SET": 2,
+    "Question No": 24,
+    "Question": "The aggregate conveyor belt is tracking to one side and rubbing the structure. What will you do?",
+    "Model Answer": "Stop before belt damage, isolate and lock the conveyor, remove buildup, inspect pulley alignment, idlers, loading position, belt tension and structure. Correct gradually, run empty, then loaded, and confirm stable tracking.",
+    "Competency": "Material Handling",
+    "Score 5 (Excellent)": "Stops early, isolates, checks all major tracking causes and validates empty and loaded",
+    "Score 4 (Good)": "Corrects alignment and tests but misses one likely cause",
+    "Score 3 (Average)": "Recognizes mistracking and adjusts one idler only",
+    "Score 2 (Weak)": "Adjusts while belt is running or lets it rub",
+    "Score 1 (Poor)": "No response"
+  },
+  {
+    "SET": 2,
+    "Question No": 25,
+    "Question": "An aggregate bin gate does not close fully and causes material to continue feeding after the target weight. What will you do?",
+    "Model Answer": "Stop automatic batching, isolate the gate, inspect obstruction, hinge/linkage, cylinder, limit switch and command signal. Repair, test full close repeatedly, empty excess material as per approved procedure and verify weighing accuracy.",
+    "Competency": "Mechanical & Control Troubleshooting",
+    "Score 5 (Excellent)": "Controls the quality risk, checks mechanical/control causes, tests repeatedly and verifies weighing",
+    "Score 4 (Good)": "Repairs and tests gate closure but misses excess-material control",
+    "Score 3 (Average)": "Stops batching and performs limited gate checks",
+    "Score 2 (Weak)": "Compensates manually in software or continues batching",
+    "Score 1 (Poor)": "No response"
+  },
+  {
+    "SET": 2,
+    "Question No": 26,
+    "Question": "Cement flow is poor because aeration pads are not working and cement is bridging in the silo cone. What will you do?",
+    "Model Answer": "Stop forcing the screw, check aeration air pressure, valves, lines and pad condition, confirm cement condition/moisture, restore controlled aeration and clear bridging using an approved external method. Do not enter the silo.",
+    "Competency": "Cement Flow Troubleshooting",
+    "Score 5 (Excellent)": "Finds air/material cause, restores controlled aeration and clears safely without entry",
+    "Score 4 (Good)": "Restores aeration and flow but misses cement-condition check",
+    "Score 3 (Average)": "Checks air supply only",
+    "Score 2 (Weak)": "Overpressurizes aeration or sends someone inside",
+    "Score 1 (Poor)": "No response"
+  },
+  {
+    "SET": 2,
+    "Question No": 27,
+    "Question": "The same conveyor bearing has been replaced three times in two months. What should be done differently now?",
+    "Model Answer": "Stop repeated part swapping and perform RCA: check alignment, shaft condition, housing fit, lubrication type/quantity, contamination, belt tension, load and installation practice. Correct the underlying cause and monitor temperature/vibration.",
+    "Competency": "Root Cause Analysis",
+    "Score 5 (Excellent)": "Investigates installation, operating and lubrication causes, fixes root cause and monitors",
+    "Score 4 (Good)": "Performs broad diagnosis and correction but limited monitoring",
+    "Score 3 (Average)": "Replaces bearing with a different brand only",
+    "Score 2 (Weak)": "Fits another bearing without investigation",
+    "Score 1 (Poor)": "No response"
+  },
+  {
+    "SET": 2,
+    "Question No": 28,
+    "Question": "Batcher starts repairing a conveyor without a permit, LOTO or plant handover because the job is 'small'. What will you do?",
+    "Model Answer": "Stop the job immediately, secure the area, complete contractor authorization, risk assessment, permit and LOTO, verify competence/PPE, brief all affected persons and restart work only after formal clearance.",
+    "Competency": "Contractor Safety",
+    "Score 5 (Excellent)": "Stops work, establishes full permit/LOTO/competence controls and communicates",
+    "Score 4 (Good)": "Stops and applies permit/LOTO but misses one contractor-control step",
+    "Score 3 (Average)": "Warns contractor and informs supervisor",
+    "Score 2 (Weak)": "Allows the small job to continue",
+    "Score 1 (Poor)": "No response"
+  },
+  {
+    "SET": 2,
+    "Question No": 29,
+    "Question": "Mixer vibration has increased compared with normal, but concrete quality is still acceptable and dispatch pressure is high. What action will you take?",
+    "Model Answer": "Pause production at a safe point, compare vibration/noise/current with the normal baseline, inspect blade condition, liner clearance, bearings, coupling and foundation bolts under LOTO, correct the cause, trial-run and monitor before full production.",
+    "Competency": "Condition Monitoring",
+    "Score 5 (Excellent)": "Uses baseline data, isolates safely, checks likely mechanical causes, corrects and verifies",
+    "Score 4 (Good)": "Stops and inspects the main causes but does not use trend/baseline data",
+    "Score 3 (Average)": "Recognizes abnormal vibration and informs maintenance with limited checks",
+    "Score 2 (Weak)": "Continues until breakdown because quality is still acceptable",
+    "Score 1 (Poor)": "No idea or treats vibration as normal"
+  },
+  {
+    "SET": 2,
+    "Question No": 30,
+    "Question": "During inspection, one mixer liner bolt is loose and another bolt head is missing. Production wants to run for two more hours. What will you do?",
+    "Model Answer": "Do not run the mixer. Apply LOTO, inspect all liner/blade fasteners and internal damage, replace with the correct grade fasteners, torque as specified, check for loose parts, and conduct a controlled trial before release.",
+    "Competency": "Safety & Mechanical Integrity",
+    "Score 5 (Excellent)": "Refuses unsafe running, performs full fastener inspection, correct replacement, torque and trial",
+    "Score 4 (Good)": "Stops and replaces the visible fasteners but does not inspect all related points",
+    "Score 3 (Average)": "Reports the defect and waits for instruction",
+    "Score 2 (Weak)": "Allows temporary operation or fits an incorrect bolt",
+    "Score 1 (Poor)": "No response or ignores it"
   }
 ];
