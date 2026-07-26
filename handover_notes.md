@@ -58,6 +58,14 @@ This document summarizes the engineering history, architectural improvements, an
     - The `gemini-2.5-flash` model performs built-in OCR and visual analysis on the scanned document, returning the assessment.
 - **Current Status**: **Fully Functional**. Active on the main branch.
 
+### Milestone 4: Set-Based Partitioning for Kaushal Batching Questions
+- **Problem**: The original randomization selected 10 questions entirely at random from a flat list, leading to scenarios where a candidate could get too many maintenance questions or too many daily-checks questions, affecting test balance.
+- **Solution**: Split the updated July 2026 question bank into two balanced sets:
+  - **Set 1**: Operations & Safety (20 questions, mapped to `SET: 1` in [src/data/kaushalBatchingQuestions.js](file:///d:/RDC%20Drive/AI/Assessments/rdc-assessments/src/data/kaushalBatchingQuestions.js)).
+  - **Set 2**: Maintenance & Troubleshooting (10 questions, mapped to `SET: 2` in [src/data/kaushalBatchingQuestions.js](file:///d:/RDC%20Drive/AI/Assessments/rdc-assessments/src/data/kaushalBatchingQuestions.js)).
+- **Frontend Randomizer**: Updated [src/components/RecruitmentTab.jsx](file:///d:/RDC%20Drive/AI/Assessments/rdc-assessments/src/components/RecruitmentTab.jsx#L86-L92) to pick exactly **7 questions from Set 1** and **3 questions from Set 2**, then combine and shuffle them to maintain consistent structural representation across tests.
+- **Current Status**: **Fully Functional**. Active on the main branch.
+
 ---
 
 ## 3. Environment Variable Requirements
