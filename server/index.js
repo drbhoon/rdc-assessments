@@ -32,7 +32,14 @@ if (DATABASE_URL) {
     console.log("Connecting to Postgres database...");
     pool = new Pool({
         connectionString: DATABASE_URL,
-        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+        // Railway's Postgres requires TLS; the HR platform's runs on a private
+        // Docker network with TLS disabled, and pg fails outright if it asks
+        // for a secure connection the server cannot offer. PGSSL=disable opts out.
+        ssl: process.env.PGSSL === 'disable'
+            ? false
+            : process.env.NODE_ENV === 'production'
+                ? { rejectUnauthorized: false }
+                : false,
     });
 
     pool.query(`
