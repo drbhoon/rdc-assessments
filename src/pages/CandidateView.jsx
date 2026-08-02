@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import RecruitmentTab from '../components/RecruitmentTab';
 import { Loader2, AlertCircle, CheckCircle } from 'lucide-react';
+import { withBase } from '../basePath';
 
 export default function CandidateView() {
     const [searchParams] = useSearchParams();
@@ -27,7 +28,7 @@ export default function CandidateView() {
         setError(null);
 
         try {
-            const res = await fetch(`/api/interviews/${code}`);
+            const res = await fetch(withBase(`/api/interviews/${code}`));
             if (!res.ok) {
                 const data = await res.json();
                 throw new Error(data.error || 'Failed to fetch interview');
@@ -49,7 +50,7 @@ export default function CandidateView() {
         // Because the current UI just emits a formatted transcript string, we use it directly.
         setLoading(true);
         try {
-            const res = await fetch(`/api/interviews/${interviewData.join_code}`, {
+            const res = await fetch(withBase(`/api/interviews/${interviewData.join_code}`), {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -84,7 +85,7 @@ export default function CandidateView() {
         return (
             <div className="min-h-screen bg-slate-900 text-slate-100 font-sans flex items-center justify-center p-6">
                 <div className="bg-slate-800/80 p-8 rounded-2xl border border-slate-700/50 shadow-2xl max-w-md w-full text-center">
-                    <img src="/rdc_logo.png" alt="RDC Logo" className="h-16 object-contain mx-auto drop-shadow-md mb-6" />
+                    <img src={withBase("/rdc_logo.png")} alt="RDC Logo" className="h-16 object-contain mx-auto drop-shadow-md mb-6" />
                     <h1 className="text-2xl font-bold text-white mb-2">Remote Interview Portal</h1>
                     <p className="text-slate-400 mb-8">Please enter your 6-character Join Code provided by HR to begin.</p>
                     
@@ -110,7 +111,7 @@ export default function CandidateView() {
                     >
                         Join Interview
                     </button>
-                    <p className="mt-8 text-xs text-slate-500">Are you an administrator? <a href="/admin" className="underline hover:text-slate-400">Log in here</a>.</p>
+                    <p className="mt-8 text-xs text-slate-500">Are you an administrator? <a href={withBase("/admin")} className="underline hover:text-slate-400">Log in here</a>.</p>
                 </div>
             </div>
         );
@@ -132,7 +133,7 @@ export default function CandidateView() {
     return (
         <div className="min-h-screen bg-slate-900 text-slate-100 font-sans selection:bg-brand-500/30">
             <header className="border-b border-slate-800 bg-slate-950/50 backdrop-blur-md sticky top-0 z-10 px-6 py-4 flex items-center justify-between">
-                <img src="/rdc_logo.png" alt="RDC Logo" className="h-10 object-contain" />
+                <img src={withBase("/rdc_logo.png")} alt="RDC Logo" className="h-10 object-contain" />
                 <div className="text-right">
                     <span className="text-sm font-semibold text-brand-400 bg-brand-500/10 px-3 py-1 rounded-full border border-brand-500/20">
                         {interviewData.assessment_type === 'sales_recruitment' ? 'Sales Recruitment' 

@@ -1,0 +1,12 @@
+.git
+.gitignore
+.env
+.env.local
+node_modules
+dist
+*.log
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+tmp_read_pdf.js

@@ -17,6 +17,12 @@ app.set('trust proxy', 1);
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
+// On the HR platform the app is mounted at hr.rdcc.ai/eval and nginx proxies
+// the prefix through unstripped, so every route has to live under it. Empty
+// everywhere else, which mounts the router at "/" exactly as before.
+const BASE_PATH = (process.env.BASE_PATH || '').replace(/\/$/, '');
+const router = express.Router();
+
 // Database Initialization
 const DATABASE_URL = process.env.DATABASE_URL;
 let pool;
@@ -57,7 +63,7 @@ const generateCode = () => {
 // -- API ROUTES --
 
 // 1. Admin generates a new interview link
-app.post('/api/interviews', async (req, res) => {
+router.post('/api/interviews', async (req, res) => {
     const { assessment_type } = req.body;
     if (!assessment_type) return res.status(400).json({ error: "assessment_type required" });
 
@@ -91,7 +97,7 @@ app.post('/api/interviews', async (req, res) => {
 });
 
 // 2. Admin fetches all interviews
-app.get('/api/interviews', async (req, res) => {
+router.get('/api/interviews', async (req, res) => {
     try {
         if (pool) {
             const result = await pool.query('SELECT * FROM interviews ORDER BY created_at DESC');
@@ -106,7 +112,7 @@ app.get('/api/interviews', async (req, res) => {
 });
 
 // 3. Candidate fetches an interview by code
-app.get('/api/interviews/:code', async (req, res) => {
+router.get('/api/interviews/:code', async (req, res) => {
     const code = req.params.code.toUpperCase();
     try {
         if (pool) {
@@ -124,7 +130,7 @@ app.get('/api/interviews/:code', async (req, res) => {
 });
 
 // 4. Candidate submits their interview
-app.put('/api/interviews/:code', async (req, res) => {
+router.put('/api/interviews/:code', async (req, res) => {
     const code = req.params.code.toUpperCase();
     const { candidate_details, transcript_answers } = req.body;
 
@@ -157,7 +163,7 @@ app.put('/api/interviews/:code', async (req, res) => {
 });
 
 // 4.5. Admin saves AI Report
-app.post('/api/interviews/:code/report', async (req, res) => {
+router.post('/api/interviews/:code/report', async (req, res) => {
     const code = req.params.code.toUpperCase();
     const { ai_report } = req.body;
 
@@ -183,7 +189,7 @@ app.post('/api/interviews/:code/report', async (req, res) => {
 });
 
 // 5. Admin deletes an interview
-app.delete('/api/interviews/:code', async (req, res) => {
+router.delete('/api/interviews/:code', async (req, res) => {
     const code = req.params.code.toUpperCase();
     
     try {
@@ -203,7 +209,7 @@ app.delete('/api/interviews/:code', async (req, res) => {
 });
 
 // 6. Secure AI evaluation proxy
-app.post('/api/evaluate', async (req, res) => {
+router.post('/api/evaluate', async (req, res) => {
     const { reportText, type, fileData, mimeType } = req.body;
     if (!reportText && !fileData) {
         return res.status(400).json({ error: "reportText or fileData required for evaluation" });
@@ -220,11 +226,17 @@ app.post('/api/evaluate', async (req, res) => {
 
 // Serve frontend in production
 if (process.env.NODE_ENV === 'production') {
-    app.use(express.static(path.join(process.cwd(), 'dist')));
-    app.use((req, res) => {
+    router.use(express.static(path.join(process.cwd(), 'dist')));
+    router.use((req, res) => {
         res.sendFile(path.join(process.cwd(), 'dist', 'index.html'));
     });
 }
+
+app.use(BASE_PATH || '/', router);
+
+// Unprefixed health check, so container and uptime probes can hit the service
+// directly without knowing the mount path.
+app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {

@@ -5,6 +5,7 @@ import { extractTextFromFile } from '../utils/fileParser'
 import { evaluateReport } from '../utils/aiService'
 import { toJpeg } from 'html-to-image'
 import { jsPDF } from 'jspdf'
+import { BASE, withBase } from '../basePath'
 
 function AdminDashboard() {
   const [appState, setAppState] = useState('upload') // upload, parsing, ready_for_api, api, results
@@ -50,7 +51,7 @@ function AdminDashboard() {
   const fetchInterviews = async () => {
       setFetchingRemote(true);
       try {
-          const res = await fetch('/api/interviews');
+          const res = await fetch(withBase('/api/interviews'));
           if (res.ok) {
               const data = await res.json();
               setInterviews(data);
@@ -61,7 +62,7 @@ function AdminDashboard() {
 
   const generateLink = async (type) => {
       try {
-          const res = await fetch('/api/interviews', {
+          const res = await fetch(withBase('/api/interviews'), {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ assessment_type: type })
@@ -81,7 +82,7 @@ function AdminDashboard() {
   const deleteInterview = async (code) => {
       if (!window.confirm("Are you sure you want to delete this interview record? This action cannot be undone.")) return;
       try {
-          const res = await fetch(`/api/interviews/${code}`, {
+          const res = await fetch(withBase(`/api/interviews/${code}`), {
               method: 'DELETE'
           });
           if (res.ok) {
@@ -252,7 +253,7 @@ function AdminDashboard() {
         
         // Save to DB so it doesn't regenerate
         if (selectedJoinCode) {
-           await fetch(`/api/interviews/${selectedJoinCode}/report`, {
+           await fetch(withBase(`/api/interviews/${selectedJoinCode}/report`), {
                method: 'POST',
                headers: { 'Content-Type': 'application/json' },
                body: JSON.stringify({ ai_report: result })
@@ -341,7 +342,7 @@ function AdminDashboard() {
             Logout
         </button>
         <div className="flex flex-col items-center gap-4 mb-4">
-          <img src="/rdc_logo.png" alt="RDC Logo" className="h-20 object-contain drop-shadow-md" />
+          <img src={withBase("/rdc_logo.png")} alt="RDC Logo" className="h-20 object-contain drop-shadow-md" />
           <h1 className="font-extrabold text-2xl md:text-4xl tracking-tight text-white uppercase mt-2">RDC ASSESSMENTS & RECRUITMENTS</h1>
         </div>
         <div className="max-w-2xl text-center">
@@ -466,7 +467,7 @@ function AdminDashboard() {
                                           <td className="p-4 text-right flex items-center justify-end gap-2 h-full">
                                               {inv.status === 'pending' ? (
                                                   <button onClick={() => {
-                                                      navigator.clipboard.writeText(`${window.location.origin}/?code=${inv.join_code}`);
+                                                      navigator.clipboard.writeText(`${window.location.origin}${BASE}/?code=${inv.join_code}`);
                                                       alert("Candidate Link copied to clipboard!");
                                                   }} className="text-slate-400 hover:text-white text-sm bg-slate-800 px-3 py-1.5 rounded border border-slate-700 h-8">Copy Link</button>
                                               ) : inv.ai_report ? (

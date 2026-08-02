@@ -1,6 +1,8 @@
+import { withBase } from '../basePath';
+
 export const evaluateReport = async (reportText, type = 'ops', fileData = null, mimeType = null) => {
     try {
-        const response = await fetch('/api/evaluate', {
+        const response = await fetch(withBase('/api/evaluate'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
