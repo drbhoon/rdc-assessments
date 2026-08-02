@@ -23,6 +23,38 @@ app.use(express.json({ limit: '50mb' }));
 const BASE_PATH = (process.env.BASE_PATH || '').replace(/\/$/, '');
 const router = express.Router();
 
+// ── Admin API ───────────────────────────────────────────────────────────────
+// These endpoints were previously mixed in with the candidate ones under
+// /api/, with no server-side authentication at all — the admin password was a
+// client-side check compiled into the JS bundle, so anyone could list every
+// candidate by requesting /api/interviews directly.
+//
+// They now live under /api/admin/, which nginx gates with the HR allowlist and
+// where it forwards the verified identity as X-Auth-Email. That header can
+// only originate from nginx: it is blanked for every inbound request and
+// re-set solely from the auth_request result.
+//
+// REQUIRE_SSO is set on the HR platform. Without it (Railway, local dev) the
+// behaviour is unchanged, so those deployments keep working as before.
+const REQUIRE_SSO = process.env.REQUIRE_SSO === 'true';
+const adminRouter = express.Router();
+
+adminRouter.use((req, res, next) => {
+    if (!REQUIRE_SSO) return next();
+    const email = req.get('X-Auth-Email');
+    if (!email) return res.status(401).json({ error: 'HR sign-in required' });
+    req.hrEmail = email;
+    next();
+});
+
+// Lets the client skip its password screen when the platform already knows who
+// this is. Returns null rather than 401 when SSO is off, so the UI can fall
+// back to asking for the password.
+adminRouter.get('/me', (req, res) => {
+    res.json({ email: req.get('X-Auth-Email') || null, sso: REQUIRE_SSO });
+});
+
+
 // Database Initialization
 const DATABASE_URL = process.env.DATABASE_URL;
 let pool;
@@ -70,7 +102,7 @@ const generateCode = () => {
 // -- API ROUTES --
 
 // 1. Admin generates a new interview link
-router.post('/api/interviews', async (req, res) => {
+adminRouter.post('/interviews', async (req, res) => {
     const { assessment_type } = req.body;
     if (!assessment_type) return res.status(400).json({ error: "assessment_type required" });
 
@@ -104,7 +136,7 @@ router.post('/api/interviews', async (req, res) => {
 });
 
 // 2. Admin fetches all interviews
-router.get('/api/interviews', async (req, res) => {
+adminRouter.get('/interviews', async (req, res) => {
     try {
         if (pool) {
             const result = await pool.query('SELECT * FROM interviews ORDER BY created_at DESC');
@@ -170,7 +202,7 @@ router.put('/api/interviews/:code', async (req, res) => {
 });
 
 // 4.5. Admin saves AI Report
-router.post('/api/interviews/:code/report', async (req, res) => {
+adminRouter.post('/interviews/:code/report', async (req, res) => {
     const code = req.params.code.toUpperCase();
     const { ai_report } = req.body;
 
@@ -196,7 +228,7 @@ router.post('/api/interviews/:code/report', async (req, res) => {
 });
 
 // 5. Admin deletes an interview
-router.delete('/api/interviews/:code', async (req, res) => {
+adminRouter.delete('/interviews/:code', async (req, res) => {
     const code = req.params.code.toUpperCase();
     
     try {
@@ -216,7 +248,7 @@ router.delete('/api/interviews/:code', async (req, res) => {
 });
 
 // 6. Secure AI evaluation proxy
-router.post('/api/evaluate', async (req, res) => {
+adminRouter.post('/evaluate', async (req, res) => {
     const { reportText, type, fileData, mimeType } = req.body;
     if (!reportText && !fileData) {
         return res.status(400).json({ error: "reportText or fileData required for evaluation" });
@@ -230,6 +262,8 @@ router.post('/api/evaluate', async (req, res) => {
         res.status(500).json({ error: error.message || "Failed to evaluate report using AI backend proxy." });
     }
 });
+
+router.use('/api/admin', adminRouter);
 
 // Serve frontend in production
 if (process.env.NODE_ENV === 'production') {

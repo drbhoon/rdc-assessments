@@ -23,15 +23,46 @@ function AdminDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [loginError, setLoginError] = useState(false);
+  // Set when the HR platform has already identified the caller; null elsewhere.
+  const [hrEmail, setHrEmail] = useState(null);
+
+  // On the HR platform nginx has already verified the caller against the HR
+  // allowlist and forwards their identity, so asking for a password again is
+  // pointless friction. /api/admin/me reports that identity; when it comes back
+  // we sign the user straight in. Elsewhere it returns null and the password
+  // screen behaves exactly as before.
+  const [ssoChecked, setSsoChecked] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem('adminAuth');
-    if (saved === 'true') {
-        setIsAuthenticated(true);
-    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(withBase('/api/admin/me'));
+        if (res.ok) {
+          const { email } = await res.json();
+          if (email && !cancelled) {
+            setHrEmail(email);
+            setIsAuthenticated(true);
+            setSsoChecked(true);
+            return;
+          }
+        }
+      } catch { /* fall through to the password screen */ }
+      if (cancelled) return;
+      if (localStorage.getItem('adminAuth') === 'true') setIsAuthenticated(true);
+      setSsoChecked(true);
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   const handleLogout = () => {
+    // Signed in through the HR portal: clearing local state would achieve
+    // nothing, since the next page load would be recognised again. End the
+    // shared session at the portal instead.
+    if (hrEmail) {
+      window.location.href = '/api/auth/logout';
+      return;
+    }
     setIsAuthenticated(false);
     localStorage.removeItem('adminAuth');
     setPasswordInput('');
@@ -51,7 +82,7 @@ function AdminDashboard() {
   const fetchInterviews = async () => {
       setFetchingRemote(true);
       try {
-          const res = await fetch(withBase('/api/interviews'));
+          const res = await fetch(withBase('/api/admin/interviews'));
           if (res.ok) {
               const data = await res.json();
               setInterviews(data);
@@ -62,7 +93,7 @@ function AdminDashboard() {
 
   const generateLink = async (type) => {
       try {
-          const res = await fetch(withBase('/api/interviews'), {
+          const res = await fetch(withBase('/api/admin/interviews'), {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ assessment_type: type })
@@ -82,7 +113,7 @@ function AdminDashboard() {
   const deleteInterview = async (code) => {
       if (!window.confirm("Are you sure you want to delete this interview record? This action cannot be undone.")) return;
       try {
-          const res = await fetch(withBase(`/api/interviews/${code}`), {
+          const res = await fetch(withBase(`/api/admin/interviews/${code}`), {
               method: 'DELETE'
           });
           if (res.ok) {
@@ -253,7 +284,7 @@ function AdminDashboard() {
         
         // Save to DB so it doesn't regenerate
         if (selectedJoinCode) {
-           await fetch(withBase(`/api/interviews/${selectedJoinCode}/report`), {
+           await fetch(withBase(`/api/admin/interviews/${selectedJoinCode}/report`), {
                method: 'POST',
                headers: { 'Content-Type': 'application/json' },
                body: JSON.stringify({ ai_report: result })
@@ -301,6 +332,16 @@ function AdminDashboard() {
     }
   };
 
+  // Don't flash the password screen while the SSO check is still in flight —
+  // on the HR platform it resolves to "already signed in".
+  if (!ssoChecked) {
+      return (
+          <div className="min-h-screen bg-slate-900 text-slate-100 font-sans flex items-center justify-center">
+              <Loader2 className="animate-spin text-slate-500" size={28} />
+          </div>
+      );
+  }
+
   if (!isAuthenticated) {
       return (
           <div className="min-h-screen bg-slate-900 text-slate-100 font-sans flex items-center justify-center p-6">
@@ -335,12 +376,15 @@ function AdminDashboard() {
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 font-sans selection:bg-brand-500/30">
       <header className="relative border-b border-slate-800 bg-slate-950/50 backdrop-blur-md sticky top-0 z-10 px-6 py-6 flex flex-col items-center justify-center text-center">
-        <button 
-            onClick={handleLogout}
-            className="absolute top-6 right-6 text-sm text-slate-400 hover:text-white bg-slate-800/50 px-3 py-1.5 rounded border border-slate-700 transition"
-        >
-            Logout
-        </button>
+        <div className="absolute top-6 right-6 flex items-center gap-3">
+            {hrEmail && <span className="text-sm text-slate-400 hidden sm:inline">{hrEmail}</span>}
+            <button
+                onClick={handleLogout}
+                className="text-sm text-slate-400 hover:text-white bg-slate-800/50 px-3 py-1.5 rounded border border-slate-700 transition"
+            >
+                {hrEmail ? 'Sign out' : 'Logout'}
+            </button>
+        </div>
         <div className="flex flex-col items-center gap-4 mb-4">
           <img src={withBase("/rdc_logo.png")} alt="RDC Logo" className="h-20 object-contain drop-shadow-md" />
           <h1 className="font-extrabold text-2xl md:text-4xl tracking-tight text-white uppercase mt-2">RDC ASSESSMENTS & RECRUITMENTS</h1>
