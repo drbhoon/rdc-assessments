@@ -51,7 +51,11 @@ adminRouter.use((req, res, next) => {
 // this is. Returns null rather than 401 when SSO is off, so the UI can fall
 // back to asking for the password.
 adminRouter.get('/me', (req, res) => {
-    res.json({ email: req.get('X-Auth-Email') || null, sso: REQUIRE_SSO });
+    // Only claim an identity when SSO is actually switched on, so a
+    // half-configured deployment shows an honest password prompt rather than
+    // looping between the login screen and a dashboard that cannot authorise.
+    const email = REQUIRE_SSO ? (req.get('X-Auth-Email') || null) : null;
+    res.json({ email, sso: REQUIRE_SSO });
 });
 
 
