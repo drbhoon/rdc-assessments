@@ -1,7 +1,8 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Mic, MicOff, ChevronRight, ChevronLeft, CheckCircle2, User, GraduationCap, Calendar, MapPin, Send, AlertCircle, Languages } from 'lucide-react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { Mic, MicOff, ChevronRight, ChevronLeft, CheckCircle2, User, GraduationCap, Calendar, MapPin, Send, AlertCircle, Languages, Loader2 } from 'lucide-react';
 import { kaushalTechQuestions } from '../data/kaushalTechQuestions';
 import { kaushalBatchingQuestions } from '../data/kaushalBatchingQuestions';
+import { withBase } from '../basePath';
 
 // All major Indian languages supported by the Web Speech API (BCP-47 tags)
 const INDIAN_LANGUAGES = [
@@ -95,6 +96,15 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
   }, [assessmentType]);
 
   const [step, setStep] = useState(0); // 0 = details, 1-N = questions
+  const [part, setPart] = useState('details'); // details, mcq, mcq_result, oral
+  const [mcqQuestions, setMcqQuestions] = useState([]);
+  const [mcqIndex, setMcqIndex] = useState(0);
+  const [mcqAnswers, setMcqAnswers] = useState({});
+  const [mcqTimeLeft, setMcqTimeLeft] = useState(30);
+  const [mcqScore, setMcqScore] = useState(null);
+  const [tempSelectedOption, setTempSelectedOption] = useState('');
+  const [loadingMcq, setLoadingMcq] = useState(false);
+
   const [details, setDetails] = useState({ name: '', qualification: '', dob: '', hometown: '' });
   const [selectedLang, setSelectedLang] = useState('en-IN'); // BCP-47 tag for speech recognition
   const [answers, setAnswers] = useState(Array(questions.length).fill(''));
@@ -105,83 +115,93 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
 
   const [timeLeft, setTimeLeft] = useState(1200); // 20 minutes
 
-  // Timer Effect
-  useEffect(() => {
-    if (step > 0 && step <= questions.length && timeLeft > 0) {
-      const timerId = setInterval(() => {
-        setTimeLeft(prev => prev - 1);
-      }, 1000);
-      return () => clearInterval(timerId);
-    } else if (timeLeft === 0 && step <= questions.length) {
-      // Auto-submit when timer hits 0
-      if (isListening) toggleListen();
-      compileAndSubmit();
-      setStep(questions.length + 1); // move past questions
-    }
-  }, [step, timeLeft, questions.length]);
+  const submitMcqPart = useCallback(async (finalAnswers) => {
+      setLoadingMcq(true);
+      const searchParams = new URLSearchParams(window.location.search);
+      const code = searchParams.get('code');
 
-  // Initialize Speech Recognition
-  useEffect(() => {
-    let recognitionInstance = null;
-    try {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        const recognition = new SpeechRecognition();
-        recognition.continuous = true;
-        recognition.interimResults = true; // Use real-time parsing to reduce lag
-        recognition.lang = selectedLang; // Set by candidate's language selection
-
-        recognition.onresult = (event) => {
-          let finalText = '';
-          let interimText = '';
-          
-          for (let i = event.resultIndex; i < event.results.length; i++) {
-            if (event.results[i].isFinal) {
-               finalText += event.results[i][0].transcript + ' ';
-            } else {
-               interimText += event.results[i][0].transcript;
-            }
+      // Compile answers including any unanswered questions
+      const gradesPayload = { ...finalAnswers };
+      mcqQuestions.forEach(q => {
+          if (gradesPayload[q.id] === undefined) {
+              gradesPayload[q.id] = '';
           }
+      });
+
+      try {
+          const res = await fetch(withBase(`/api/interviews/${code}/part-a`), {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ answers: gradesPayload })
+          });
           
-          setInterimTranscript(interimText);
-
-          if (finalText) {
-            setAnswers(prev => {
-              const newAnswers = [...prev];
-              const qIndex = step - 1;
-              if (qIndex >= 0 && qIndex < questions.length) {
-                  newAnswers[qIndex] = (newAnswers[qIndex] + ' ' + finalText).trim();
-              }
-              return newAnswers;
-            });
+          if (res.ok) {
+              const data = await res.json();
+              setMcqScore({ score: data.score, total: data.total });
+              setPart('mcq_result');
+          } else {
+              throw new Error("Grading failed");
           }
-        };
-
-        recognition.onerror = (event) => {
-          console.error("Speech error", event.error);
-          setIsListening(false);
-        };
-
-        recognition.onend = () => {
-          setIsListening(false);
-          setInterimTranscript('');
-        };
-
-        recognitionRef.current = recognition;
-        recognitionInstance = recognition;
+      } catch(err) {
+          console.error("Grading error:", err);
+          setMcqScore({ score: 0, total: mcqQuestions.length });
+          setPart('mcq_result');
+      } finally {
+          setLoadingMcq(false);
       }
-    } catch (err) {
-      console.warn("Speech Recognition initialization failed (likely unsupported by this mobile browser variant):", err);
-    }
-    
-    // Cleanup when unmounting or changing step
-    return () => {
-        if (isListening && recognitionInstance) {
-            try { recognitionInstance.stop(); } catch(e){}
-            setIsListening(false);
-        }
-    }
-  }, [step, questions.length, selectedLang]); // Re-init when language or step changes
+  }, [mcqQuestions]);
+
+  const handleMcqNext = useCallback((selectedOption = '') => {
+      const currentQ = mcqQuestions[mcqIndex];
+      const ansKey = selectedOption || tempSelectedOption || '';
+      
+      setMcqAnswers(prev => ({
+          ...prev,
+          [currentQ.id]: ansKey
+      }));
+      setTempSelectedOption('');
+
+      if (mcqIndex < mcqQuestions.length - 1) {
+          const nextIndex = mcqIndex + 1;
+          setMcqIndex(nextIndex);
+          setMcqTimeLeft(mcqQuestions[nextIndex].time_seconds || 30);
+      } else {
+          // Send MCQ answers to grade
+          submitMcqPart({ ...mcqAnswers, [currentQ.id]: ansKey });
+      }
+  }, [mcqQuestions, mcqIndex, tempSelectedOption, mcqAnswers, submitMcqPart]);
+
+  const handleStartInterview = async () => {
+      const searchParams = new URLSearchParams(window.location.search);
+      const code = searchParams.get('code');
+
+      if (code && (assessmentType === 'kaushal_mm' || assessmentType === 'kaushal_tech' || assessmentType === 'kaushal_batching')) {
+          setLoadingMcq(true);
+          try {
+              const res = await fetch(withBase(`/api/interviews/${code}/mcq`));
+              if (res.ok) {
+                  const data = await res.json();
+                  if (data && data.length > 0) {
+                      setMcqQuestions(data);
+                      setMcqAnswers({});
+                      setMcqIndex(0);
+                      setMcqTimeLeft(data[0].time_seconds || 30);
+                      setTempSelectedOption('');
+                      setPart('mcq');
+                      setLoadingMcq(false);
+                      return;
+                  }
+              }
+          } catch(err) {
+              console.error("Error fetching MCQ questions:", err);
+          }
+          setLoadingMcq(false);
+      }
+      
+      // Fallback/Non-Kaushal: Skip MCQ and go straight to oral
+      setPart('oral');
+      setStep(1);
+  };
 
   const toggleListen = () => {
     if (!recognitionRef.current) {
@@ -255,23 +275,125 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
       onSubmit(reportString, assessmentType);
   };
 
+  // MCQ Per-Question Timer Effect
+  useEffect(() => {
+    if (part === 'mcq' && mcqQuestions.length > 0 && mcqTimeLeft > 0) {
+      const timerId = setInterval(() => {
+        setMcqTimeLeft(prev => prev - 1);
+      }, 1000);
+      return () => clearInterval(timerId);
+    } else if (part === 'mcq' && mcqQuestions.length > 0 && mcqTimeLeft === 0) {
+      handleMcqNext('');
+    }
+  }, [part, mcqTimeLeft, mcqQuestions, mcqIndex, handleMcqNext]);
+
+  // Oral Timer Effect
+  useEffect(() => {
+    if (part === 'oral' && step > 0 && step <= questions.length && timeLeft > 0) {
+      const timerId = setInterval(() => {
+        setTimeLeft(prev => prev - 1);
+      }, 1000);
+      return () => clearInterval(timerId);
+    } else if (part === 'oral' && timeLeft === 0 && step <= questions.length) {
+      // Auto-submit when timer hits 0
+      if (isListening) toggleListen();
+      compileAndSubmit();
+      setStep(questions.length + 1); // move past questions
+    }
+  }, [part, step, timeLeft, questions.length, isListening]);
+
+  // Initialize Speech Recognition
+  useEffect(() => {
+    let recognitionInstance = null;
+    try {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true; // Use real-time parsing to reduce lag
+        recognition.lang = selectedLang; // Set by candidate's language selection
+
+        recognition.onresult = (event) => {
+          let finalText = '';
+          let interimText = '';
+          
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            if (event.results[i].isFinal) {
+               finalText += event.results[i][0].transcript + ' ';
+            } else {
+               interimText += event.results[i][0].transcript;
+            }
+          }
+          
+          setInterimTranscript(interimText);
+
+          if (finalText) {
+            setAnswers(prev => {
+              const newAnswers = [...prev];
+              const qIndex = step - 1;
+              if (qIndex >= 0 && qIndex < questions.length) {
+                  newAnswers[qIndex] = (newAnswers[qIndex] + ' ' + finalText).trim();
+              }
+              return newAnswers;
+            });
+          }
+        };
+
+        recognition.onerror = (event) => {
+          console.error("Speech error", event.error);
+          setIsListening(false);
+        };
+
+        recognition.onend = () => {
+          setIsListening(false);
+          setInterimTranscript('');
+        };
+
+        recognitionRef.current = recognition;
+        recognitionInstance = recognition;
+      }
+    } catch (err) {
+      console.warn("Speech Recognition initialization failed (likely unsupported by this mobile browser variant):", err);
+    }
+    
+    // Cleanup when unmounting or changing step
+    return () => {
+        if (isListening && recognitionInstance) {
+            try { recognitionInstance.stop(); } catch (err) { console.warn(err); }
+            setIsListening(false);
+        }
+    }
+  }, [step, questions.length, selectedLang, isListening]);
+
   // UI rendering
-  const progressPercentage = (step / (questions.length + 1)) * 100; // +1 for details step
+  const progressPercentage = part === 'mcq' && mcqQuestions.length > 0
+      ? ((mcqIndex + 1) / mcqQuestions.length) * 100
+      : (step / (questions.length + 1)) * 100;
 
   return (
     <div className="bg-slate-800/80 p-6 md:p-8 rounded-2xl border border-slate-700/50 max-w-3xl mx-auto w-full shadow-xl">
         
         {/* Progress Bar */}
-        <div className="w-full bg-slate-700 rounded-full h-2 mb-8 overflow-hidden">
-            <div 
-                className="bg-brand-500 h-2 rounded-full transition-all duration-300" 
-                style={{ width: `${progressPercentage}%` }}>
+        {part !== 'details' && part !== 'mcq_result' && (
+            <div className="w-full bg-slate-700 rounded-full h-2 mb-8 overflow-hidden animate-in fade-in duration-300">
+                <div 
+                    className="bg-brand-500 h-2 rounded-full transition-all duration-300" 
+                    style={{ width: `${progressPercentage}%` }}>
+                </div>
             </div>
-        </div>
+        )}
+
+        {/* Global Loading Overlay */}
+        {loadingMcq && (
+            <div className="flex flex-col items-center justify-center py-16 text-slate-400 animate-in fade-in duration-300">
+                <Loader2 className="animate-spin text-brand-500 mb-4" size={48} />
+                <p className="text-sm font-semibold">Processing assessment data...</p>
+            </div>
+        )}
 
         {/* STEP 0: DETAILS */}
-        {step === 0 && (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+        {!loadingMcq && part === 'details' && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 text-left">
                 <div className="mb-6">
                     <h2 className="text-2xl font-bold text-white mb-2">Candidate Details</h2>
                     <p className="text-slate-400">Fill out the basic information before starting the interview.</p>
@@ -323,15 +445,107 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
                 </div>
 
                 <div className="mt-8 flex justify-end">
-                    <button onClick={handleNext} disabled={!details.name || !details.qualification} className="bg-brand-600 hover:bg-brand-500 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <button onClick={handleStartInterview} disabled={!details.name || !details.qualification} className="bg-brand-600 hover:bg-brand-500 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                         Start Interview <ChevronRight size={20} />
                     </button>
                 </div>
             </div>
         )}
 
+        {/* PART A: MCQ INTERFACE */}
+        {!loadingMcq && part === 'mcq' && mcqQuestions.length > 0 && (() => {
+            const currentQ = mcqQuestions[mcqIndex];
+            return (
+                <div className="animate-in fade-in slide-in-from-right-4 duration-300 flex flex-col h-full text-left">
+                    <div className="flex justify-between items-center mb-6">
+                        <div>
+                            <span className="text-xs text-brand-400 font-bold uppercase tracking-wider block mb-1">Part A: Multiple Choice Questions</span>
+                            <span className="text-slate-500 text-sm font-semibold">Question {mcqIndex + 1} of {mcqQuestions.length}</span>
+                        </div>
+                        <div className="flex items-center gap-2 bg-slate-900 border border-slate-700 px-4 py-2 rounded-xl">
+                            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Time Left:</span>
+                            <span className={`text-lg font-mono font-bold ${mcqTimeLeft < 6 ? 'text-red-400 animate-pulse' : 'text-white'}`}>{mcqTimeLeft}s</span>
+                        </div>
+                    </div>
+
+                    <h2 className="text-xl md:text-2xl font-bold text-white mb-8 leading-relaxed">
+                        {currentQ.question}
+                    </h2>
+
+                    <div className="grid grid-cols-1 gap-4 mb-8">
+                        {[
+                            { key: 'A', text: currentQ.option_a },
+                            { key: 'B', text: currentQ.option_b },
+                            { key: 'C', text: currentQ.option_c },
+                            { key: 'D', text: currentQ.option_d }
+                        ].map(opt => {
+                            const isSelected = tempSelectedOption === opt.key;
+                            return (
+                                <button
+                                    key={opt.key}
+                                    onClick={() => setTempSelectedOption(opt.key)}
+                                    className={`p-4 md:p-5 rounded-xl border text-left font-medium transition-all duration-200 cursor-pointer flex items-center gap-4 group
+                                               ${isSelected 
+                                                 ? 'bg-brand-500/10 border-brand-500 text-brand-300 shadow-md shadow-brand-500/5' 
+                                                 : 'bg-slate-900/50 border-slate-700/50 text-slate-300 hover:border-slate-600 hover:bg-slate-800/50'}`}
+                                >
+                                    <span className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm shrink-0 transition-colors
+                                                    ${isSelected 
+                                                      ? 'bg-brand-500 text-white' 
+                                                      : 'bg-slate-800 text-slate-400 group-hover:bg-slate-700'}`}>
+                                        {opt.key}
+                                    </span>
+                                    <span className="leading-relaxed">{opt.text}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    <div className="flex justify-end mt-4">
+                        <button
+                            onClick={() => handleMcqNext(tempSelectedOption)}
+                            disabled={!tempSelectedOption}
+                            className="bg-brand-600 hover:bg-brand-500 text-white font-bold px-6 py-3 rounded-xl transition-all shadow-lg shadow-brand-500/20 active:scale-95 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <span>{mcqIndex === mcqQuestions.length - 1 ? 'Submit Part A' : 'Next Question'}</span>
+                            <ChevronRight size={18} />
+                        </button>
+                    </div>
+                </div>
+            );
+        })()}
+
+        {/* PART A COMPLETE RESULT */}
+        {!loadingMcq && part === 'mcq_result' && (
+            <div className="animate-in fade-in duration-300 text-center py-8">
+                <CheckCircle2 className="mx-auto mb-6 text-brand-500" size={64} />
+                <h2 className="text-3xl font-extrabold text-white mb-2">Part A: MCQ Section Completed</h2>
+                <p className="text-slate-400 mb-6">Your answers have been securely submitted and graded.</p>
+                
+                <div className="bg-slate-900 border border-slate-700/50 rounded-2xl p-8 max-w-sm mx-auto mb-8">
+                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider block mb-2">Your Score</span>
+                    <div className="text-5xl font-black text-brand-400">{mcqScore?.score} / {mcqScore?.total}</div>
+                    <div className="text-sm text-slate-400 mt-2">{Math.round((mcqScore?.score / mcqScore?.total) * 100)}% Accuracy</div>
+                </div>
+
+                <p className="text-slate-400 mb-8 max-w-md mx-auto text-sm leading-relaxed">
+                    You are now ready to proceed to **Part B: Oral Scenario Assessment**. In Part B, you will read scenario questions and speak your answers aloud. Please ensure you are in a quiet room and your microphone is working.
+                </p>
+
+                <button
+                    onClick={() => {
+                        setPart('oral');
+                        setStep(1); // Start Part B at question 1
+                    }}
+                    className="bg-brand-600 hover:bg-brand-500 text-white font-bold px-8 py-3.5 rounded-xl transition-all shadow-lg shadow-brand-500/20 active:scale-95 flex items-center gap-2 mx-auto"
+                >
+                    Start Part B (Oral Interview) <ChevronRight size={20} />
+                </button>
+            </div>
+        )}
+
         {/* STEP 1-N: QUESTIONS */}
-        {step > 0 && step <= questions.length && (
+        {!loadingMcq && part === 'oral' && step > 0 && step <= questions.length && (
             <div className="animate-in fade-in slide-in-from-right-4 duration-300 flex flex-col h-full">
                 <div className="flex justify-between items-start gap-4 mb-6">
                     <div>

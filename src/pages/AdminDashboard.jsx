@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { FileUp, Loader2, FileText, FileCheck2, AlertCircle, RefreshCw, Download, CheckCircle2, ChevronRight, Check, User, Trash2 } from 'lucide-react'
+import { FileUp, Loader2, FileText, FileCheck2, AlertCircle, RefreshCw, Download, CheckCircle2, ChevronRight, Check, User, Trash2, Upload } from 'lucide-react'
 import { extractTextFromFile } from '../utils/fileParser'
 import { evaluateReport } from '../utils/aiService'
 import { toJpeg } from 'html-to-image'
@@ -71,7 +71,7 @@ function AdminDashboard() {
   // V5 Remote Recruitment States
   const [interviews, setInterviews] = useState([]);
   const [fetchingRemote, setFetchingRemote] = useState(false);
-  const [linkType, setLinkType] = useState('recruitment');
+
 
   useEffect(() => {
      if (assessmentType === 'recruitment' || assessmentType === 'sales_recruitment' || assessmentType === 'kaushal_mm' || assessmentType === 'kaushal_tech' || assessmentType === 'kaushal_batching') {
@@ -101,7 +101,7 @@ function AdminDashboard() {
           if (res.ok) {
               fetchInterviews();
           }
-      } catch (e) { alert("Failed to generate link"); }
+      } catch (err) { console.error(err); alert("Failed to generate link"); }
   }
 
   const extractName = (text) => {
@@ -121,7 +121,7 @@ function AdminDashboard() {
           } else {
               alert("Failed to delete interview");
           }
-      } catch (e) { alert("Failed to delete interview"); }
+      } catch (err) { console.error(err); alert("Failed to delete interview"); }
   }
 
   const getCorrectHeading = (type) => {
@@ -137,16 +137,124 @@ function AdminDashboard() {
     }
   }
 
+  const generatePartAHtml = (partA) => {
+      if (!partA || !partA.questions || partA.questions.length === 0) return '';
+
+      const accuracy = Math.round((partA.score / partA.total) * 100);
+      const scoreColor = accuracy >= 70 ? '#2E7D32' : accuracy >= 50 ? '#E65100' : '#C62828';
+      const scoreBg = accuracy >= 70 ? '#E8F5E9' : accuracy >= 50 ? '#FFF3E0' : '#FFEBEE';
+
+      let tableRows = '';
+      partA.questions.forEach((q, idx) => {
+          const isCorrect = q.is_correct;
+          const statusIcon = isCorrect 
+              ? `<span style="color: #2E7D32; font-weight: bold; font-size: 18px;">✓</span>`
+              : `<span style="color: #C62828; font-weight: bold; font-size: 18px;">✗</span>`;
+          const rowBg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
+          
+          const selectedText = q.selected_option === 'No Answer' ? 'No Answer' : `Option ${q.selected_option}`;
+          const correctText = `Option ${q.correct_option}`;
+          
+          tableRows += `
+              <tr style="background-color: ${rowBg}; border-bottom: 1px solid #e2e8f0;">
+                  <td style="padding: 12px; font-weight: 500; color: #475569; text-align: center;">${idx + 1}</td>
+                  <td style="padding: 12px; color: #1e293b;">${q.question}</td>
+                  <td style="padding: 12px; color: ${isCorrect ? '#2E7D32' : '#C62828'}; font-weight: 600; text-align: center;">${selectedText}</td>
+                  <td style="padding: 12px; color: #475569; font-weight: 500; text-align: center;">${correctText}</td>
+                  <td style="padding: 12px; text-align: center;">${statusIcon}</td>
+              </tr>
+          `;
+      });
+
+      return `
+          <div style="font-family: system-ui, -apple-system, sans-serif; margin-bottom: 40px; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); text-align: left;">
+              <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f1f5f9; padding-bottom: 16px; margin-bottom: 20px;">
+                  <h2 style="margin: 0; font-size: 20px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.05em;">Part A: Objective MCQ Evaluation</h2>
+                  <div style="background-color: ${scoreBg}; color: ${scoreColor}; padding: 8px 16px; border-radius: 9999px; font-size: 14px; font-weight: 700; border: 1px solid ${scoreColor}40;">
+                      Accuracy: ${accuracy}%
+                  </div>
+              </div>
+              
+              <div style="display: flex; gap: 24px; margin-bottom: 24px; flex-wrap: wrap;">
+                  <div style="flex: 1; min-width: 140px; background-color: #f8fafc; border: 1px solid #f1f5f9; border-radius: 12px; padding: 16px; text-align: center;">
+                      <div style="font-size: 32px; font-weight: 800; color: #2563eb; line-height: 1;">${partA.score}</div>
+                      <div style="font-size: 12px; font-weight: 600; color: #64748b; margin-top: 8px; text-transform: uppercase;">Correct Answers</div>
+                  </div>
+                  <div style="flex: 1; min-width: 140px; background-color: #f8fafc; border: 1px solid #f1f5f9; border-radius: 12px; padding: 16px; text-align: center;">
+                      <div style="font-size: 32px; font-weight: 800; color: #ef4444; line-height: 1;">${partA.total - partA.score}</div>
+                      <div style="font-size: 12px; font-weight: 600; color: #64748b; margin-top: 8px; text-transform: uppercase;">Incorrect / Unanswered</div>
+                  </div>
+                  <div style="flex: 1; min-width: 140px; background-color: #f8fafc; border: 1px solid #f1f5f9; border-radius: 12px; padding: 16px; text-align: center;">
+                      <div style="font-size: 32px; font-weight: 800; color: #0f172a; line-height: 1;">${partA.total}</div>
+                      <div style="font-size: 12px; font-weight: 600; color: #64748b; margin-top: 8px; text-transform: uppercase;">Total Questions</div>
+                  </div>
+              </div>
+
+              <div style="overflow-x: auto;">
+                  <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
+                      <thead>
+                          <tr style="background-color: #f1f5f9; border-bottom: 2px solid #e2e8f0;">
+                              <th style="padding: 12px; font-weight: 700; color: #334155; width: 60px; text-align: center;">Q.No.</th>
+                              <th style="padding: 12px; font-weight: 700; color: #334155;">Question Scenario</th>
+                              <th style="padding: 12px; font-weight: 700; color: #334155; width: 140px; text-align: center;">Selected Answer</th>
+                              <th style="padding: 12px; font-weight: 700; color: #334155; width: 140px; text-align: center;">Correct Answer</th>
+                              <th style="padding: 12px; font-weight: 700; color: #334155; width: 80px; text-align: center;">Status</th>
+                          </tr>
+                      </thead>
+                      <tbody>
+                          ${tableRows}
+                      </tbody>
+                  </table>
+              </div>
+          </div>
+      `;
+  };
+
+  const handleMcqUpload = async (e, type) => {
+      const uFile = e.target.files[0];
+      if (!uFile) return;
+
+      const reader = new FileReader();
+      reader.onload = async (evt) => {
+          try {
+              const base64Data = evt.target.result;
+              const response = await fetch(withBase('/api/admin/interviews/mcq-upload'), {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ fileData: base64Data, assessmentType: type })
+              });
+              
+              if (!response.ok) {
+                  const errData = await response.json().catch(() => ({}));
+                  throw new Error(errData.error || "Failed to upload MCQ questions.");
+              }
+
+              const data = await response.json();
+              alert(`Successfully uploaded MCQ Question Bank! Imported ${data.count} questions.`);
+          } catch (err) {
+              console.error("MCQ upload failed:", err);
+              alert("Error: " + err.message);
+          }
+      };
+      reader.readAsDataURL(uFile);
+  };
+
   const loadSubmission = (interview) => {
       if (interview.status !== 'completed') return alert("Candidate hasn't finished yet!");
-      setReportText(interview.transcript_answers?.raw || "");
+      const rawText = interview.transcript_answers?.part_b?.raw || interview.transcript_answers?.raw || "";
+      setReportText(rawText);
       setAssessmentType(interview.assessment_type);
       setFile({ name: `Interview_ID_${interview.join_code}` });
       setSelectedJoinCode(interview.join_code);
       
       if (interview.ai_report) {
           const cleanReport = interview.ai_report.replace(/<h1[^>]*>.*?<\/h1>/i, `<h1 style="margin: 0; color: #2E7D32;">${getCorrectHeading(interview.assessment_type)}</h1>`);
-          setEvaluationResult(cleanReport);
+          let finalReportHtml = cleanReport;
+          if (interview.transcript_answers?.part_a) {
+              const partAHtml = generatePartAHtml(interview.transcript_answers.part_a);
+              finalReportHtml = partAHtml + cleanReport;
+          }
+          setEvaluationResult(finalReportHtml);
           setAppState('results');
       } else {
           setAppState('ready_for_api');
@@ -298,7 +406,14 @@ function AdminDashboard() {
       }
 
       // Enforce the correct contextual heading dynamically using a regex replace.
-      const cleanedResult = result.replace(/<h1[^>]*>.*?<\/h1>/i, `<h1 style="margin: 0; color: #2E7D32;">${getCorrectHeading(typeToEvaluate)}</h1>`);
+      let finalReportHtml = result;
+      const currentInterview = interviews.find(i => i.join_code === selectedJoinCode);
+      if (currentInterview && currentInterview.transcript_answers?.part_a) {
+          const partAHtml = generatePartAHtml(currentInterview.transcript_answers.part_a);
+          finalReportHtml = partAHtml + result;
+      }
+
+      const cleanedResult = finalReportHtml.replace(/<h1[^>]*>.*?<\/h1>/i, `<h1 style="margin: 0; color: #2E7D32;">${getCorrectHeading(typeToEvaluate)}</h1>`);
 
       setEvaluationResult(cleanedResult);
       setAppState('results');
@@ -466,6 +581,29 @@ function AdminDashboard() {
 
         {appState === 'upload' && (assessmentType === 'recruitment' || assessmentType === 'sales_recruitment' || assessmentType === 'kaushal_mm' || assessmentType === 'kaushal_tech' || assessmentType === 'kaushal_batching') && (
           <div className="bg-slate-800/80 p-8 rounded-2xl border border-slate-700/50 shadow-2xl max-w-4xl mx-auto text-left">
+              
+              {/* Part A MCQ Upload block for Kaushal Assessments */}
+              {(assessmentType === 'kaushal_mm' || assessmentType === 'kaushal_tech' || assessmentType === 'kaushal_batching') && (
+                  <div className="mb-8 p-6 bg-slate-900/50 rounded-xl border border-slate-700/50 flex flex-col md:flex-row items-center justify-between gap-4 animate-in fade-in duration-300">
+                      <div>
+                          <h3 className="text-lg font-bold text-white mb-1">Part A (MCQ) Question Bank</h3>
+                          <p className="text-xs text-slate-400 max-w-xl">Upload a spreadsheet (.xlsx/.xls/.csv) to configure MCQ questions for this assessment. A maximum of 25 random questions will be asked.</p>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                          <label className="cursor-pointer bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors border border-slate-700 shadow-md flex items-center gap-2">
+                              <Upload size={16} className="text-brand-400" />
+                              <span>Upload MCQ Template</span>
+                              <input
+                                  type="file"
+                                  accept=".xlsx,.xls,.csv"
+                                  className="hidden"
+                                  onChange={(e) => handleMcqUpload(e, assessmentType)}
+                              />
+                          </label>
+                      </div>
+                  </div>
+              )}
+
               <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-700">
                   <h2 className="text-2xl font-bold text-white">Remote Interview Management</h2>
                   <button onClick={() => generateLink(assessmentType)} className="px-5 py-2 bg-brand-600 hover:bg-brand-500 rounded-lg text-sm font-semibold transition-colors whitespace-nowrap shadow-lg">
