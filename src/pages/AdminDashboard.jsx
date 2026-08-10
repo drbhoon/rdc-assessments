@@ -141,8 +141,8 @@ function AdminDashboard() {
       if (!partA || !partA.questions || partA.questions.length === 0) return '';
 
       const accuracy = Math.round((partA.score / partA.total) * 100);
-      const scoreColor = accuracy >= 70 ? '#2E7D32' : accuracy >= 50 ? '#E65100' : '#C62828';
-      const scoreBg = accuracy >= 70 ? '#E8F5E9' : accuracy >= 50 ? '#FFF3E0' : '#FFEBEE';
+      const scoreColor = accuracy > 80 ? '#2E7D32' : accuracy >= 65 ? '#E65100' : '#C62828';
+      const scoreBg = accuracy > 80 ? '#E8F5E9' : accuracy >= 65 ? '#FFF3E0' : '#FFEBEE';
 
       let tableRows = '';
       partA.questions.forEach((q, idx) => {
@@ -170,8 +170,8 @@ function AdminDashboard() {
           <div style="font-family: system-ui, -apple-system, sans-serif; margin-bottom: 40px; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); text-align: left;">
               <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f1f5f9; padding-bottom: 16px; margin-bottom: 20px;">
                   <h2 style="margin: 0; font-size: 20px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.05em;">Part A: Objective MCQ Evaluation</h2>
-                  <div style="background-color: ${scoreBg}; color: ${scoreColor}; padding: 8px 16px; border-radius: 9999px; font-size: 14px; font-weight: 700; border: 1px solid ${scoreColor}40;">
-                      Accuracy: ${accuracy}%
+                  <div style="background-color: ${scoreBg}; color: ${scoreColor}; padding: 8px 16px; border-radius: 9999px; font-size: 16px; font-weight: 800; border: 1px solid ${scoreColor}40;">
+                      ${accuracy}%
                   </div>
               </div>
               

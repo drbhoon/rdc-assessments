@@ -525,7 +525,7 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
                 <div className="bg-slate-900 border border-slate-700/50 rounded-2xl p-8 max-w-sm mx-auto mb-8">
                     <span className="text-xs text-slate-500 font-bold uppercase tracking-wider block mb-2">Your Score</span>
                     <div className="text-5xl font-black text-brand-400">{mcqScore?.score} / {mcqScore?.total}</div>
-                    <div className="text-sm text-slate-400 mt-2">{Math.round((mcqScore?.score / mcqScore?.total) * 100)}% Accuracy</div>
+                    <div className="text-sm text-slate-400 mt-2">{Math.round((mcqScore?.score / mcqScore?.total) * 100)}% Score</div>
                 </div>
 
                 <p className="text-slate-400 mb-8 max-w-md mx-auto text-sm leading-relaxed">
