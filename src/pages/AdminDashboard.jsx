@@ -6,8 +6,15 @@ import { evaluateReport } from '../utils/aiService'
 import { toJpeg } from 'html-to-image'
 import { jsPDF } from 'jspdf'
 import { BASE, withBase } from '../basePath'
+import { CONSOLES, typesFor } from '../consoles'
 
-function AdminDashboard() {
+// consoleKey decides which assessment types this console owns — employee
+// assessments on /admin, external recruitment on /admin/recruitment. Everything
+// that differs between the two lives in src/consoles.js, so adding a
+// recruitment track later is a line of config rather than an edit in here.
+function AdminDashboard({ consoleKey = 'assessment' }) {
+  const consoleConfig = CONSOLES[consoleKey] || CONSOLES.assessment
+  const consoleTypes = typesFor(consoleKey)
   const [appState, setAppState] = useState('upload') // upload, parsing, ready_for_api, api, results
   const [file, setFile] = useState(null)
   const [reportText, setReportText] = useState('')
@@ -82,7 +89,12 @@ function AdminDashboard() {
   const fetchInterviews = async () => {
       setFetchingRemote(true);
       try {
-          const res = await fetch(withBase('/api/admin/interviews'));
+          // Asked for by type, so a recruitment console never receives employee
+          // assessment records at all. Filtering in the browser would still put
+          // every Kaushal result on the wire to whoever opened the recruitment
+          // tile.
+          const query = consoleTypes.map((t) => `type=${encodeURIComponent(t)}`).join('&');
+          const res = await fetch(withBase(`/api/admin/interviews?${query}`));
           if (res.ok) {
               const data = await res.json();
               setInterviews(data);
@@ -502,11 +514,11 @@ function AdminDashboard() {
         </div>
         <div className="flex flex-col items-center gap-4 mb-4">
           <img src={withBase("/rdc_logo.png")} alt="RDC Logo" className="h-20 object-contain drop-shadow-md" />
-          <h1 className="font-extrabold text-2xl md:text-4xl tracking-tight text-white uppercase mt-2">RDC ASSESSMENTS & RECRUITMENTS</h1>
+          <h1 className="font-extrabold text-2xl md:text-4xl tracking-tight text-white uppercase mt-2">{consoleConfig.title}</h1>
         </div>
         <div className="max-w-2xl text-center">
           <p className="text-sm md:text-base text-slate-400 font-medium leading-relaxed">
-            AI-Powered Recruitment and Assessment System
+            {consoleConfig.tagline}
           </p>
         </div>
 
@@ -527,17 +539,13 @@ function AdminDashboard() {
                 className="w-full bg-slate-900 border-2 border-slate-700 text-white rounded-xl px-4 py-3 text-sm font-semibold focus:outline-none focus:border-brand-500 shadow-xl cursor-pointer"
             >
                 <option value="" disabled>-- Select Assessment Dashboard --</option>
-                <optgroup label="Offline PDF Evaluators">
-                    <option value="ops">Operations Trainee Eval</option>
-                    <option value="sales">Sales Trainee Eval</option>
-                </optgroup>
-                <optgroup label="Remote Assessment Links">
-                    <option value="recruitment">Fresher Recruitment</option>
-                    <option value="sales_recruitment">Sales Recruitment</option>
-                    <option value="kaushal_mm">Kaushal MM Validation</option>
-                    <option value="kaushal_tech">Kaushal Technical (Concrete)</option>
-                    <option value="kaushal_batching">Kaushal Batching</option>
-                </optgroup>
+                {consoleConfig.groups.map((group) => (
+                  <optgroup key={group.label} label={group.label}>
+                    {group.options.map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </optgroup>
+                ))}
             </select>
           </div>
         )}
@@ -548,8 +556,8 @@ function AdminDashboard() {
         {appState === 'upload' && !assessmentType && (
           <div className="text-center p-12 text-slate-400 border border-slate-700 rounded-2xl bg-slate-800/20 max-w-3xl mx-auto shadow-inner">
             <User size={48} className="mx-auto mb-4 text-slate-500 opacity-50" />
-            <h2 className="text-2xl font-semibold text-white mb-2">Welcome to RDC Admin Panel</h2>
-            <p>Select a trainee tab to evaluate reports, or generate remote recruitment links.</p>
+            <h2 className="text-2xl font-semibold text-white mb-2">Welcome to {consoleConfig.title}</h2>
+            <p>{consoleConfig.emptyHint}</p>
           </div>
         )}
 

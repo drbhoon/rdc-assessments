@@ -154,14 +154,33 @@ adminRouter.post('/interviews', async (req, res) => {
     }
 });
 
-// 2. Admin fetches all interviews
+// 2. Admin fetches interviews, optionally narrowed to one console's types.
+//
+// ?type=recruitment&type=sales_recruitment returns just those. The employee
+// console and the recruitment console share this table, and whoever opens the
+// recruitment tile has no business receiving Kaushal results — filtering in the
+// browser would still have put them on the wire.
+//
+// No `type` at all returns everything, so any older caller is unaffected.
 adminRouter.get('/interviews', async (req, res) => {
     try {
+        const raw = req.query.type;
+        const types = (Array.isArray(raw) ? raw : raw ? [raw] : [])
+            .map((t) => String(t).trim())
+            .filter(Boolean);
+
         if (pool) {
-            const result = await pool.query('SELECT * FROM interviews ORDER BY created_at DESC');
+            const result = types.length
+                ? await pool.query(
+                    'SELECT * FROM interviews WHERE assessment_type = ANY($1) ORDER BY created_at DESC',
+                    [types],
+                  )
+                : await pool.query('SELECT * FROM interviews ORDER BY created_at DESC');
             res.json(result.rows);
         } else {
-            const records = Array.from(memoryDb.values()).sort((a, b) => b.created_at - a.created_at);
+            const records = Array.from(memoryDb.values())
+                .filter((r) => !types.length || types.includes(r.assessment_type))
+                .sort((a, b) => b.created_at - a.created_at);
             res.json(records);
         }
     } catch (error) {
