@@ -649,8 +649,8 @@ function AdminDashboard({ consoleKey = 'assessment' }) {
                                               }
                                           </td>
                                           <td className="p-4 font-medium text-slate-300">
-                                              {inv.status === 'completed' && inv.transcript_answers?.raw 
-                                                  ? extractName(inv.transcript_answers.raw) || "Candidate"
+                                              {inv.status === 'completed' && (inv.transcript_answers?.part_b?.raw || inv.transcript_answers?.raw)
+                                                  ? extractName(inv.transcript_answers.part_b?.raw || inv.transcript_answers.raw) || "Candidate"
                                                   : "-"
                                               }
                                           </td>
