@@ -188,6 +188,28 @@ adminRouter.get('/interviews', async (req, res) => {
     }
 });
 
+/**
+ * What a CANDIDATE may see about their own interview.
+ *
+ * These routes are public — the 6-character join code is the only key — so
+ * the response must never carry results. `SELECT *` handed back the whole
+ * row, and that includes transcript_answers.part_a: the MCQ score AND the
+ * correct_option for every question asked. Anyone holding a join code could
+ * read the answer key out of the network tab, and a candidate who rejoined
+ * after Part A was handed it without even looking.
+ *
+ * Results for both parts are released by HR after completion, so the
+ * candidate needs exactly three things: which assessment this is, its code,
+ * and whether it has already been submitted.
+ */
+function candidateSafeView(record) {
+    return {
+        join_code:       record.join_code,
+        assessment_type: record.assessment_type,
+        status:          record.status,
+    };
+}
+
 // 3. Candidate fetches an interview by code
 router.get('/api/interviews/:code', async (req, res) => {
     const code = req.params.code.toUpperCase();
@@ -195,11 +217,11 @@ router.get('/api/interviews/:code', async (req, res) => {
         if (pool) {
             const result = await pool.query('SELECT * FROM interviews WHERE join_code = $1', [code]);
             if (result.rows.length === 0) return res.status(404).json({ error: "Invalid Join Code" });
-            res.json(result.rows[0]);
+            res.json(candidateSafeView(result.rows[0]));
         } else {
             const record = memoryDb.get(code);
             if (!record) return res.status(404).json({ error: "Invalid Join Code" });
-            res.json(record);
+            res.json(candidateSafeView(record));
         }
     } catch (error) {
         res.status(500).json({ error: "Server error fetching interview" });
@@ -234,7 +256,9 @@ router.put('/api/interviews/:code', async (req, res) => {
                 'UPDATE interviews SET candidate_details = $1, transcript_answers = $2, status = $3 WHERE join_code = $4 RETURNING *',
                 [JSON.stringify(candidate_details), JSON.stringify(finalAnswers), 'completed', code]
             );
-            res.json(result.rows[0]);
+            // Trimmed: returning the updated row handed the candidate their own
+            // part_a score and the correct answers at the moment they finished.
+            res.json(candidateSafeView(result.rows[0]));
         } else {
             const record = memoryDb.get(code);
             if (!record) return res.status(404).json({ error: "Invalid Join Code" });
@@ -253,7 +277,7 @@ router.put('/api/interviews/:code', async (req, res) => {
             record.transcript_answers = finalAnswers;
             record.status = 'completed';
             memoryDb.set(code, record);
-            res.json(record);
+            res.json(candidateSafeView(record));
         }
     } catch (error) {
         console.error("Submit Interview Error:", error);
@@ -513,7 +537,11 @@ router.post('/api/interviews/:code/part-a', async (req, res) => {
             memoryDb.set(code, interview);
         }
 
-        res.json({ score, total, success: true });
+        // The score is computed and stored for HR, but NOT returned. Sending it
+        // back put the Part A result in the candidate's browser even once the
+        // screen stopped displaying it, and told them how they had done before
+        // they sat Part B.
+        res.json({ success: true });
     } catch (error) {
         console.error("Grade Part A Error:", error);
         res.status(500).json({ error: "Server error grading MCQ answers" });
