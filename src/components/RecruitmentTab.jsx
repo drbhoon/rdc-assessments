@@ -96,17 +96,13 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
   }, [assessmentType]);
 
   const [step, setStep] = useState(0); // 0 = details, 1-N = questions
-  const [part, setPart] = useState('details'); // details, mcq, mcq_error, mcq_result, oral
+  const [part, setPart] = useState('details'); // details, mcq, mcq_result, oral
   const [mcqQuestions, setMcqQuestions] = useState([]);
   const [mcqIndex, setMcqIndex] = useState(0);
   const [mcqAnswers, setMcqAnswers] = useState({});
   const [mcqTimeLeft, setMcqTimeLeft] = useState(30);
   const [tempSelectedOption, setTempSelectedOption] = useState('');
   const [loadingMcq, setLoadingMcq] = useState(false);
-  // Why Part A submission failed, and the exact answers that failed to save,
-  // so Retry re-sends the same set rather than whatever state has become.
-  const [mcqError, setMcqError] = useState('');
-  const [pendingMcqAnswers, setPendingMcqAnswers] = useState(null);
 
   const [details, setDetails] = useState({ name: '', qualification: '', dob: '', hometown: '' });
   const [selectedLang, setSelectedLang] = useState('en-IN'); // BCP-47 tag for speech recognition
@@ -118,22 +114,8 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
 
   const [timeLeft, setTimeLeft] = useState(1200); // 20 minutes
 
-  /**
-   * Send Part A to the server, which grades and stores it.
-   *
-   * A failure here MUST NOT move the candidate on. The answers exist only in
-   * this component's state, so advancing to Part B discarded them for good:
-   * the interview finished, HR downloaded the report, and Part A was simply
-   * missing — indistinguishable from an assessment where Part A never ran.
-   * Nobody was told, because the only trace was a console.error in the
-   * candidate's own browser. So a failure stops here and offers Retry, which
-   * re-sends the same answers; Part B stays out of reach until Part A is
-   * safely stored.
-   */
   const submitMcqPart = useCallback(async (finalAnswers) => {
       setLoadingMcq(true);
-      setMcqError('');
-      setPendingMcqAnswers(finalAnswers);
       const searchParams = new URLSearchParams(window.location.search);
       const code = searchParams.get('code');
 
@@ -151,20 +133,15 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ answers: gradesPayload })
           });
-
-          if (!res.ok) {
-              const data = await res.json().catch(() => ({}));
-              throw new Error(data.error || `Your answers could not be saved (error ${res.status}).`);
+          
+          if (res.ok) {
+              setPart('mcq_result');
+          } else {
+              throw new Error("Grading failed");
           }
-          setPendingMcqAnswers(null);
-          setPart('mcq_result');
       } catch(err) {
           console.error("Grading error:", err);
-          setMcqError(err.message || 'Your answers could not be saved.');
-          // A separate part, not 'mcq' — the per-question countdown only runs
-          // while part === 'mcq', and letting it run on here would re-fire
-          // handleMcqNext on the last question and resubmit in a loop.
-          setPart('mcq_error');
+          setPart('mcq_result');
       } finally {
           setLoadingMcq(false);
       }
@@ -393,7 +370,7 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
     <div className="bg-slate-800/80 p-6 md:p-8 rounded-2xl border border-slate-700/50 max-w-3xl mx-auto w-full shadow-xl">
         
         {/* Progress Bar */}
-        {part !== 'details' && part !== 'mcq_result' && part !== 'mcq_error' && (
+        {part !== 'details' && part !== 'mcq_result' && (
             <div className="w-full bg-slate-700 rounded-full h-2 mb-8 overflow-hidden animate-in fade-in duration-300">
                 <div 
                     className="bg-brand-500 h-2 rounded-full transition-all duration-300" 
@@ -533,34 +510,6 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
                 </div>
             );
         })()}
-
-        {/* PART A FAILED TO SAVE — stop here, do not reach Part B */}
-        {!loadingMcq && part === 'mcq_error' && (
-            <div className="animate-in fade-in duration-300 text-center py-8">
-                <AlertCircle className="mx-auto mb-6 text-red-400" size={64} />
-                <h2 className="text-3xl font-extrabold text-white mb-2">Part A could not be submitted</h2>
-                <p className="text-slate-400 mb-6 max-w-md mx-auto text-sm leading-relaxed">
-                    Your answers are still held on this page and have not been lost. Please check your internet
-                    connection and try again. <strong className="text-slate-300">Do not close or refresh this page</strong> —
-                    that would discard them.
-                </p>
-
-                <div className="bg-red-500/10 border border-red-500/30 rounded-2xl px-6 py-4 max-w-sm mx-auto mb-8">
-                    <p className="text-sm text-red-300 break-words">{mcqError}</p>
-                </div>
-
-                <button
-                    onClick={() => submitMcqPart(pendingMcqAnswers || mcqAnswers)}
-                    className="bg-brand-600 hover:bg-brand-500 text-white font-bold px-8 py-3.5 rounded-xl transition-all shadow-lg shadow-brand-500/20 active:scale-95 flex items-center gap-2 mx-auto"
-                >
-                    Retry submitting Part A <ChevronRight size={20} />
-                </button>
-
-                <p className="text-slate-500 mt-6 text-xs max-w-md mx-auto">
-                    If this keeps happening, tell your HR contact before closing the page.
-                </p>
-            </div>
-        )}
 
         {/* PART A COMPLETE RESULT */}
         {!loadingMcq && part === 'mcq_result' && (
