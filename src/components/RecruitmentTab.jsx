@@ -101,6 +101,7 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
   const [mcqIndex, setMcqIndex] = useState(0);
   const [mcqAnswers, setMcqAnswers] = useState({});
   const [mcqTimeLeft, setMcqTimeLeft] = useState(30);
+  const [mcqScore, setMcqScore] = useState(null);
   const [tempSelectedOption, setTempSelectedOption] = useState('');
   const [loadingMcq, setLoadingMcq] = useState(false);
 
@@ -135,12 +136,15 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
           });
           
           if (res.ok) {
+              const data = await res.json();
+              setMcqScore({ score: data.score, total: data.total });
               setPart('mcq_result');
           } else {
               throw new Error("Grading failed");
           }
       } catch(err) {
           console.error("Grading error:", err);
+          setMcqScore({ score: 0, total: mcqQuestions.length });
           setPart('mcq_result');
       } finally {
           setLoadingMcq(false);
@@ -516,18 +520,12 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
             <div className="animate-in fade-in duration-300 text-center py-8">
                 <CheckCircle2 className="mx-auto mb-6 text-brand-500" size={64} />
                 <h2 className="text-3xl font-extrabold text-white mb-2">Part A: MCQ Section Completed</h2>
-                <p className="text-slate-400 mb-6">Your answers have been securely submitted.</p>
-
-                {/* No score is shown. Results for BOTH parts are released by HR
-                    after the assessment is complete, never to the candidate in
-                    the app — knowing the Part A score mid-assessment would also
-                    colour how the candidate approaches Part B. The server no
-                    longer sends the score here either, so it cannot be read out
-                    of the network response. */}
-                <div className="bg-slate-900 border border-slate-700/50 rounded-2xl px-8 py-6 max-w-sm mx-auto mb-8">
-                    <p className="text-sm text-slate-400 leading-relaxed">
-                        Your responses have been recorded. Results are not shown here — HR will share the outcome after the full assessment is complete.
-                    </p>
+                <p className="text-slate-400 mb-6">Your answers have been securely submitted and graded.</p>
+                
+                <div className="bg-slate-900 border border-slate-700/50 rounded-2xl p-8 max-w-sm mx-auto mb-8">
+                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider block mb-2">Your Score</span>
+                    <div className="text-5xl font-black text-brand-400">{mcqScore?.score} / {mcqScore?.total}</div>
+                    <div className="text-sm text-slate-400 mt-2">{Math.round((mcqScore?.score / mcqScore?.total) * 100)}% Score</div>
                 </div>
 
                 <p className="text-slate-400 mb-8 max-w-md mx-auto text-sm leading-relaxed">
