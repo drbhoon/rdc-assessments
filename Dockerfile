@@ -17,6 +17,11 @@ ENV BASE_PATH=$BASE_PATH
 ENV VITE_ADMIN_PASSWORD=$VITE_ADMIN_PASSWORD
 RUN npm run build
 
+# Strip the build tools here, so the runtime stage can copy node_modules
+# instead of downloading every package a second time. That second download
+# once stalled a deploy for over 13 minutes on the server's network.
+RUN npm prune --omit=dev --no-audit --no-fund
+
 # ─── Runtime: Express serves the API and the built client ────────────────────
 FROM node:20-bookworm-slim AS runtime
 WORKDIR /app
@@ -27,7 +32,7 @@ ARG BASE_PATH=""
 ENV BASE_PATH=$BASE_PATH
 
 COPY package.json package-lock.json ./
-RUN npm install --omit=dev --no-audit --no-fund
+COPY --from=builder /app/node_modules ./node_modules
 
 COPY server ./server
 COPY --from=builder /app/dist ./dist
