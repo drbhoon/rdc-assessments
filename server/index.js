@@ -6,6 +6,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import XLSX from 'xlsx';
 import { evaluateReport } from './aiService.js';
+import { mountReportRoutes } from './reports/routes.js';
+import { startScheduler } from './reports/engine.js';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 dotenv.config();
@@ -79,6 +81,10 @@ if (DATABASE_URL) {
                 ? { rejectUnauthorized: false }
                 : false,
     });
+    // An idle connection dropped by Postgres (a restart, a network blip) is
+    // reported here. Without a listener node-postgres throws it, which takes
+    // the whole server down; with one, the pool simply opens a new connection.
+    pool.on('error', (err) => console.error('Postgres pool error (will reconnect):', err.message));
 
     pool.query(`
         CREATE TABLE IF NOT EXISTS interviews (
@@ -555,6 +561,11 @@ adminRouter.post('/evaluate', async (req, res) => {
         res.status(500).json({ error: error.message || "Failed to evaluate report using AI backend proxy." });
     }
 });
+
+// Monthly trainee report cycles (Operations and Sales): HR routes on the
+// admin router, the trainee and supervisor links on the open one.
+const reports = mountReportRoutes({ router, adminRouter, pool });
+if (pool) startScheduler(pool, reports.ready);
 
 router.use('/api/admin', adminRouter);
 

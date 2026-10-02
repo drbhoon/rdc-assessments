@@ -66,6 +66,18 @@ This document summarizes the engineering history, architectural improvements, an
 - **Frontend Randomizer**: Updated [src/components/RecruitmentTab.jsx](file:///d:/RDC%20Drive/AI/Assessments/rdc-assessments/src/components/RecruitmentTab.jsx#L86-L92) to pick exactly **7 questions from Set 1** and **3 questions from Set 2**, then combine and shuffle them to maintain consistent structural representation across tests.
 - **Current Status**: **Fully Functional**. Active on the main branch.
 
+### Milestone 5: Monthly Trainee Report Cycles (Operations and Sales)
+- **Problem**: HR uploaded each trainee's monthly report by hand on the "Offline PDF Evaluators" screen, and nothing was stored — no history, no way to spot trainees copying each other or recycling last month's report, and no supervisor step.
+- **Solution**: the Operations and Sales dropdown entries now open report **cycles** (`server/reports/`, `src/pages/reports/`):
+  1. HR picks the month, the trainees' last date and the supervisors' last date, selects trainees from the employee master (the same filter panel as hr.rdcc.ai/master) and assigns each a supervisor from the master. Only employee codes leave the browser; names, e-mails and plants are resolved server-side.
+  2. Each trainee is e-mailed their own link (`/report/:token`) and can upload or replace a PDF, Word file or photo until the last date. HR can reopen one trainee, upload on their behalf, or re-send a link.
+  3. After the last date a scheduler tick (`engine.js`, every 5 min) extracts the text (AI transcription for scans and photos), finds **copy** flags (other trainees, this cycle and every earlier cycle of the track) and **repeat** flags (the trainee's own earlier reports) with a deterministic 7-word-shingle overlap (`similarity.js`, unit tested), asks Gemini whether each overlap is real copying or template text, then scores each report on the existing six criteria.
+  4. Each supervisor gets one link (`/review/:token`) listing their trainees: the original report, the AI assessment PDF, the red flags, and a 1–5 rating with comments.
+  5. HR downloads the Excel summary and presses "Send results", which e-mails each trainee the AI report (PDF) and the supervisor's rating. Red flags never go to the trainee.
+- Reminders go out once, 2 days before each deadline. Every step is stamped in the database, so a restart resumes and nothing is e-mailed twice.
+- Scores are returned by Gemini as JSON (`responseJsonSchema`) and totalled in code — the old screen had the model write HTML, so the score existed only as text.
+- **Verify locally**: `npm test` (detector). For the whole cycle, run the server against a local Postgres, a stand-in master and Gemini (`GEMINI_BASE_URL` points the SDK elsewhere) and an SMTP sink.
+
 ---
 
 ## 3. Environment Variable Requirements
@@ -77,3 +89,8 @@ For the application to run successfully in development and production, the follo
 | `DATABASE_URL` | PostgreSQL connection string | Railway system variables (falls back to memory DB in dev) |
 | `PORT` | Node.js Express server port | Defaults to `3000` |
 | `VITE_ADMIN_PASSWORD` | Frontend Admin Dashboard password | Optional (defaults to `admin@rdc2026` if unset) |
+| `MASTER_API_URL`, `MASTER_API_KEY` | Employee master (portal) for report cycles | `http://portal:3000` on hr.rdcc.ai |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | E-mail for report-cycle links and results | Same account PARAKH uses |
+| `PUBLIC_URL` | Base of the links in those e-mails | `https://hr.rdcc.ai/eval` |
+| `REPORT_TICK_MS` | Scheduler interval | Optional, default 300000 (5 min) |
+| `GEMINI_BASE_URL` | Points the Gemini SDK at a stand-in | Testing only — never set in production |

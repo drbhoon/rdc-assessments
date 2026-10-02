@@ -25,10 +25,12 @@ export const CONSOLES = {
     emptyHint: 'Select an assessment to evaluate reports or generate links.',
     groups: [
       {
-        label: 'Offline PDF Evaluators',
+        // Monthly report cycles: HR sends links, trainees upload, the AI
+        // evaluates, supervisors rate. See src/pages/reports/.
+        label: 'Monthly Trainee Reports',
         options: [
-          ['ops', 'Operations Trainee Eval'],
-          ['sales', 'Sales Trainee Eval'],
+          ['ops', 'Operations Trainee Reports'],
+          ['sales', 'Sales Trainee Reports'],
         ],
       },
       {

@@ -1,12 +1,11 @@
-import { useState, useCallback, useEffect } from 'react'
-import { useDropzone } from 'react-dropzone'
-import { FileUp, Loader2, FileText, FileCheck2, AlertCircle, RefreshCw, Download, CheckCircle2, ChevronRight, Check, User, Trash2, Upload } from 'lucide-react'
-import { extractTextFromFile } from '../utils/fileParser'
+import { useState, useEffect } from 'react'
+import { Loader2, FileText, FileCheck2, AlertCircle, RefreshCw, Download, CheckCircle2, ChevronRight, Check, User, Trash2, Upload } from 'lucide-react'
 import { evaluateReport } from '../utils/aiService'
 import { toJpeg } from 'html-to-image'
 import { jsPDF } from 'jspdf'
 import { BASE, withBase } from '../basePath'
 import { CONSOLES, typesFor } from '../consoles'
+import ReportCycles from './reports/ReportCycles'
 
 // consoleKey decides which assessment types this console owns — employee
 // assessments on /admin, external recruitment on /admin/recruitment. Everything
@@ -22,6 +21,7 @@ function AdminDashboard({ consoleKey = 'assessment' }) {
   const [error, setError] = useState(null)
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
   const [assessmentType, setAssessmentType] = useState(null) // null, ops, sales, recruitment, sales_recruitment
+  const isReportTrack = assessmentType === 'ops' || assessmentType === 'sales'
   const [selectedJoinCode, setSelectedJoinCode] = useState(null)
   const [fileBase64, setFileBase64] = useState(null)
   const [fileMimeType, setFileMimeType] = useState(null)
@@ -318,71 +318,6 @@ function AdminDashboard({ consoleKey = 'assessment' }) {
     }
   }
 
-  const onDrop = useCallback(async (acceptedFiles) => {
-    setError(null)
-    const selectedFile = acceptedFiles[0]
-    if (!selectedFile) return
-
-    setFile(selectedFile)
-    setAppState('parsing')
-
-    try {
-      let text = ""
-      let base64Data = null
-      const mimeType = selectedFile.type
-
-      if (selectedFile.type === 'application/pdf' || selectedFile.type.startsWith('image/')) {
-        // Read file as base64 Data URL
-        base64Data = await new Promise((resolve, reject) => {
-          const reader = new FileReader()
-          reader.readAsDataURL(selectedFile)
-          reader.onload = () => resolve(reader.result)
-          reader.onerror = (error) => reject(error)
-        })
-
-        // For PDFs, still try to extract text for client-side preview
-        if (selectedFile.type === 'application/pdf') {
-          try {
-            text = await extractTextFromFile(selectedFile)
-          } catch (e) {
-            console.log("Digital text extraction failed, falling back to base64 OCR:", e)
-          }
-        }
-
-        if (!text || text.trim().length === 0) {
-          text = `[Scanned Document / Image: Visual mode active. Gemini will parse and evaluate the document pages directly.]`
-        }
-      } else {
-        // For DOCX or TXT files
-        text = await extractTextFromFile(selectedFile)
-        if (!text || text.trim().length === 0) {
-          throw new Error("No readable text found in the document.")
-        }
-      }
-
-      setReportText(text)
-      setFileBase64(base64Data)
-      setFileMimeType(mimeType)
-      setAppState('ready_for_api')
-    } catch (err) {
-      setError(err.message)
-      setAppState('upload')
-    }
-  }, [])
-
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: {
-      'application/pdf': ['.pdf'],
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
-      'text/plain': ['.txt'],
-      'image/png': ['.png'],
-      'image/jpeg': ['.jpg', '.jpeg'],
-      'image/webp': ['.webp']
-    },
-    maxFiles: 1
-  })
-
   const handleEvaluate = async (passedText, passedType) => {
     const textToEvaluate = passedText || reportText;
     const typeToEvaluate = passedType || assessmentType;
@@ -502,7 +437,9 @@ function AdminDashboard({ consoleKey = 'assessment' }) {
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 font-sans selection:bg-brand-500/30">
-      <header className="relative border-b border-slate-800 bg-slate-950/50 backdrop-blur-md sticky top-0 z-10 px-6 py-6 flex flex-col items-center justify-center text-center">
+      {/* Pinned except on the monthly report screens, whose long trainee
+          tables need the height more than a header that never changes. */}
+      <header className={`relative border-b border-slate-800 bg-slate-950/50 backdrop-blur-md ${isReportTrack ? '' : 'sticky top-0'} z-10 px-6 py-6 flex flex-col items-center justify-center text-center`}>
         <div className="absolute top-6 right-6 flex items-center gap-3">
             {hrEmail && <span className="text-sm text-slate-400 hidden sm:inline">{hrEmail}</span>}
             <button
@@ -552,7 +489,8 @@ function AdminDashboard({ consoleKey = 'assessment' }) {
 
       </header>
 
-      <main className="max-w-4xl mx-auto p-6 md:p-8 w-full mt-4">
+      {/* The monthly report cycles need the width for their trainee tables. */}
+      <main className={`${isReportTrack ? 'max-w-7xl' : 'max-w-4xl'} mx-auto p-6 md:p-8 w-full mt-4`}>
         {appState === 'upload' && !assessmentType && (
           <div className="text-center p-12 text-slate-400 border border-slate-700 rounded-2xl bg-slate-800/20 max-w-3xl mx-auto shadow-inner">
             <User size={48} className="mx-auto mb-4 text-slate-500 opacity-50" />
@@ -561,31 +499,9 @@ function AdminDashboard({ consoleKey = 'assessment' }) {
           </div>
         )}
 
-        {appState === 'upload' && (assessmentType === 'ops' || assessmentType === 'sales') && (
-          <div
-            {...getRootProps()}
-            className={`cursor-pointer text-center p-12 rounded-2xl border-2 border-dashed transition-all w-full max-w-3xl mx-auto
-              ${isDragActive
-                ? 'border-brand-500 bg-brand-500/10 scale-[1.02]'
-                : 'border-slate-700 hover:border-slate-500 bg-slate-800/30 hover:bg-slate-800/80'}`}
-          >
-            <input {...getInputProps()} />
-            <div className="w-16 h-16 rounded-full bg-slate-700/50 flex items-center justify-center mx-auto mb-4 text-brand-400">
-              <FileUp size={32} />
-            </div>
-            <h2 className="text-2xl font-semibold mb-2 text-white">Upload Monthly Report</h2>
-            <p className="text-slate-400 mb-6 max-w-sm mx-auto">Drag & drop a PDF, DOCX, TXT, or Image file here, or click to browse.</p>
-            <button className="bg-brand-600 hover:bg-brand-500 text-white px-6 py-3 rounded-xl font-medium transition-all shadow-lg shadow-brand-500/20 pointer-events-none">
-              Select File
-            </button>
-            {error && (
-              <div className="mt-6 flex justify-center items-center gap-2 text-red-400 bg-red-400/10 py-2 px-4 rounded-lg">
-                <AlertCircle size={18} />
-                <span className="text-sm">{error}</span>
-              </div>
-            )}
-          </div>
-        )}
+        {/* Operations and Sales trainee reports run as cycles now: trainees
+            upload through their own link instead of HR uploading here. */}
+        {isReportTrack && <ReportCycles key={assessmentType} track={assessmentType} />}
 
         {appState === 'upload' && (assessmentType === 'recruitment' || assessmentType === 'sales_recruitment' || assessmentType === 'kaushal_mm' || assessmentType === 'kaushal_tech' || assessmentType === 'kaushal_batching') && (
           <div className="bg-slate-800/80 p-8 rounded-2xl border border-slate-700/50 shadow-2xl max-w-4xl mx-auto text-left">
