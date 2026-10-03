@@ -75,6 +75,11 @@ CREATE TABLE IF NOT EXISTS report_assignments (
     UNIQUE (cycle_id, trainee_code)
 );
 CREATE INDEX IF NOT EXISTS report_assignments_trainee ON report_assignments (trainee_code);
+-- Added 2026-10-03. Nullable: cycles started before it simply show no HR SPOC
+-- until HR sets one on the trainee's row.
+ALTER TABLE report_assignments ADD COLUMN IF NOT EXISTS hr_spoc_code TEXT;
+ALTER TABLE report_assignments ADD COLUMN IF NOT EXISTS hr_spoc_name TEXT;
+ALTER TABLE report_assignments ADD COLUMN IF NOT EXISTS hr_spoc_email TEXT;
 
 CREATE TABLE IF NOT EXISTS report_supervisors (
     id SERIAL PRIMARY KEY,

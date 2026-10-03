@@ -76,7 +76,8 @@ const flagView = (f) => ({
 });
 
 const ASSIGNMENT_COLUMNS = `id, cycle_id, trainee_code, trainee_name, trainee_email, trainee_location, trainee_designation,
-  supervisor_code, supervisor_name, supervisor_email, reopen_until, invited_at, invite_error,
+  supervisor_code, supervisor_name, supervisor_email, hr_spoc_code, hr_spoc_name, hr_spoc_email,
+  reopen_until, invited_at, invite_error,
   file_name, file_mime, file_size, submitted_at, submitted_by, text_source, eval_status, eval_error,
   evaluated_at, ai_percent, ai_points, flags, supervisor_rating, supervisor_comments, reviewed_at,
   results_sent_at, results_error`;
@@ -135,8 +136,9 @@ export function mountReportRoutes({ router, adminRouter, pool }) {
   }));
 
   /**
-   * Builds cycle rows from { code, supervisor_code } pairs, resolving every
-   * person in the master. Returns { rows } or { error } naming who is wrong.
+   * Builds cycle rows from { code, supervisor_code, hr_spoc_code } entries,
+   * resolving every person in the master. Returns { rows } or { error }
+   * naming who is wrong.
    */
   async function resolvePeople(trainees) {
     if (!Array.isArray(trainees) || !trainees.length) return { error: 'Select at least one trainee.' };
@@ -147,33 +149,39 @@ export function mountReportRoutes({ router, adminRouter, pool }) {
       seen.add(t.code);
       if (!t.supervisor_code) return { error: `Assign a supervisor to every trainee (missing for ${t.code}).` };
       if (t.supervisor_code === t.code) return { error: `${t.code} cannot supervise themselves.` };
+      if (!t.hr_spoc_code) return { error: `Assign an HR SPOC to every trainee (missing for ${t.code}).` };
+      if (t.hr_spoc_code === t.code) return { error: `${t.code} cannot be their own HR SPOC.` };
     }
-    const people = await fetchByCodes(trainees.flatMap((t) => [t.code, t.supervisor_code]));
+    const people = await fetchByCodes(trainees.flatMap((t) => [t.code, t.supervisor_code, t.hr_spoc_code]));
     const problems = [];
     const rows = [];
     for (const t of trainees) {
       const e = people.get(t.code);
       const s = people.get(t.supervisor_code);
+      const h = people.get(t.hr_spoc_code);
       if (!e) { problems.push(`${t.code} is not in the employee master`); continue; }
       if (!s) { problems.push(`supervisor ${t.supervisor_code} is not in the employee master`); continue; }
+      if (!h) { problems.push(`HR SPOC ${t.hr_spoc_code} is not in the employee master`); continue; }
       if (!e.official_email_id) problems.push(`${e.employee_name} (${e.employee_code}) has no e-mail in the master`);
       if (!s.official_email_id) problems.push(`supervisor ${s.employee_name} (${s.employee_code}) has no e-mail in the master`);
-      rows.push({ e, s });
+      rows.push({ e, s, h });
     }
     if (problems.length) return { error: `Cannot send: ${[...new Set(problems)].join('; ')}.` };
     return { rows };
   }
 
   async function insertPeople(client, cycleId, rows) {
-    for (const { e, s } of rows) {
+    for (const { e, s, h } of rows) {
       await client.query(
         `INSERT INTO report_assignments
            (cycle_id, token, trainee_code, trainee_name, trainee_email, trainee_location, trainee_designation,
-            person_id, supervisor_code, supervisor_name, supervisor_email)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+            person_id, supervisor_code, supervisor_name, supervisor_email,
+            hr_spoc_code, hr_spoc_name, hr_spoc_email)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
         [cycleId, newToken(), e.employee_code, e.employee_name, e.official_email_id.toLowerCase(),
           e.location || null, e.designation || null, e.person_id ? String(e.person_id) : null,
-          s.employee_code, s.employee_name, s.official_email_id.toLowerCase()],
+          s.employee_code, s.employee_name, s.official_email_id.toLowerCase(),
+          h.employee_code, h.employee_name, h.official_email_id ? h.official_email_id.toLowerCase() : null],
       );
       await client.query(
         `INSERT INTO report_supervisors (cycle_id, supervisor_code, supervisor_name, supervisor_email, token)
@@ -336,6 +344,22 @@ export function mountReportRoutes({ router, adminRouter, pool }) {
   adminRouter.patch('/report-cycles/:id/trainees/:aid', guard(async (req, res) => {
     const a = await loadAssignment(req);
     if (!a) return res.status(404).json({ error: 'Trainee not found in this cycle.' });
+
+    // HR SPOC: a name on the report and in the Excel, nothing more — so
+    // changing it touches no rating and sends no e-mail.
+    if (req.body?.hr_spoc_code !== undefined) {
+      const spoc = String(req.body.hr_spoc_code || '');
+      if (!spoc) return res.status(400).json({ error: 'Choose an HR SPOC.' });
+      if (spoc === a.trainee_code) return res.status(400).json({ error: 'A trainee cannot be their own HR SPOC.' });
+      const h = (await fetchByCodes([spoc])).get(spoc);
+      if (!h) return res.status(400).json({ error: `${spoc} is not in the employee master.` });
+      await pool.query(
+        'UPDATE report_assignments SET hr_spoc_code = $2, hr_spoc_name = $3, hr_spoc_email = $4 WHERE id = $1',
+        [a.id, h.employee_code, h.employee_name, h.official_email_id ? h.official_email_id.toLowerCase() : null],
+      );
+      return res.json({ ok: true });
+    }
+
     const code = String(req.body?.supervisor_code || '');
     if (!code) return res.status(400).json({ error: 'Choose a supervisor.' });
     if (code === a.trainee_code) return res.status(400).json({ error: 'A trainee cannot supervise themselves.' });
@@ -473,6 +497,7 @@ export function mountReportRoutes({ router, adminRouter, pool }) {
       Name: a.trainee_name,
       'Plant location': a.trainee_location || '',
       'Supervisor name': a.supervisor_name,
+      'HR SPOC': a.hr_spoc_name || '',
       'AI score (%)': a.ai_percent === null ? '' : Number(a.ai_percent),
       'AI points (/30)': a.ai_points === null ? '' : Number(a.ai_points),
       'AI flags': flagSummary(a.flags),
@@ -482,7 +507,7 @@ export function mountReportRoutes({ router, adminRouter, pool }) {
       'Results e-mailed': a.results_sent_at ? istDate(a.results_sent_at) : '',
     }));
     const ws = XLSX.utils.json_to_sheet(sheet);
-    ws['!cols'] = [14, 14, 16, 26, 22, 26, 12, 14, 60, 12, 14, 50, 16].map((wch) => ({ wch }));
+    ws['!cols'] = [14, 14, 16, 26, 22, 26, 24, 12, 14, 60, 12, 14, 50, 16].map((wch) => ({ wch }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Summary');
     const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });

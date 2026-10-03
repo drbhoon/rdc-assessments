@@ -117,7 +117,8 @@ ${a.supervisor_comments ? `<p><strong>Supervisor's comments:</strong><br><span s
 <p>Your ${TRACK_NAME[cycle.track]} monthly progress report for <strong>${escapeHtml(cycle.period_label)}</strong> has been evaluated.</p>
 <p><strong>AI evaluation score:</strong> ${r.percent}% (${r.points}/${MAX_POINTS})</p>
 ${rated}
-<p>The full evaluation report is attached. Use the roadmap at the end of it to plan next month.</p>`),
+<p>The full evaluation report is attached. Use the roadmap at the end of it to plan next month.</p>
+${a.hr_spoc_name ? `<p>For any questions, please contact your HR SPOC, <strong>${escapeHtml(a.hr_spoc_name)}</strong>.</p>` : ''}`),
     attachments: [{ filename: `Report_Evaluation_${safeName}_${String(cycle.period_label).replace(/\s+/g, '_')}.pdf`, content: pdf }],
   });
 }

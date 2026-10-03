@@ -88,6 +88,7 @@ function AiStatus({ a, status }) {
 function RowActions({ a, cycle, people, onChanged, setNote }) {
   const [reopenDate, setReopenDate] = useState(istYmdIn(3));
   const [supervisor, setSupervisor] = useState('');
+  const [spoc, setSpoc] = useState('');
   const [busy, setBusy] = useState(false);
   const fileRef = useRef(null);
   const base = `/api/admin/report-cycles/${cycle.id}/trainees/${a.id}`;
@@ -139,6 +140,14 @@ function RowActions({ a, cycle, people, onChanged, setNote }) {
         <button disabled={busy || !supervisor || !people.length} className={btn}
                 onClick={() => run(() => api(base, { method: 'PATCH', body: { supervisor_code: supervisor } }), 'Supervisor changed.')}>
           Change supervisor
+        </button>
+        <p className="pt-2 font-semibold text-slate-200">HR SPOC</p>
+        <p className="text-slate-400">{a.hr_spoc_name ? `${a.hr_spoc_name} (${a.hr_spoc_code})` : 'Not set'}</p>
+        <PersonPicker people={people} value={spoc} exclude={a.trainee_code} onChange={setSpoc} needsEmail={false}
+                      placeholder={a.hr_spoc_name ? 'Change to… (name or code)' : 'Set HR SPOC… (name or code)'} />
+        <button disabled={busy || !spoc || !people.length} className={btn}
+                onClick={() => run(() => api(base, { method: 'PATCH', body: { hr_spoc_code: spoc } }), 'HR SPOC updated.')}>
+          {a.hr_spoc_name ? 'Change HR SPOC' : 'Set HR SPOC'}
         </button>
         {a.supervisor_comments && (
           <div className="rounded-lg bg-slate-950/60 p-2 text-xs text-slate-300">
@@ -331,7 +340,7 @@ export default function CycleDetail({ cycleId, onBack }) {
             <tr>
               <th className="w-8 p-3" />
               <th className="p-3">Trainee</th>
-              <th className="p-3">Supervisor</th>
+              <th className="p-3">Supervisor / HR SPOC</th>
               <th className="p-3">Report</th>
               <th className="p-3">AI score</th>
               <th className="p-3">Flags</th>
@@ -408,7 +417,10 @@ function FragmentRow({ a, cycle, open, onToggle, onReport, onFlags, children }) 
           <div className="font-medium text-slate-100">{a.trainee_name}</div>
           <div className="text-xs text-slate-500">{a.trainee_code}{a.trainee_location ? ` · ${a.trainee_location}` : ''}</div>
         </td>
-        <td className="p-3 text-slate-300">{a.supervisor_name}</td>
+        <td className="p-3 text-slate-300">
+          {a.supervisor_name}
+          <div className="text-xs text-slate-500">{a.hr_spoc_name ? `HR SPOC: ${a.hr_spoc_name}` : 'HR SPOC: not set'}</div>
+        </td>
         <td className="p-3"><UploadStatus a={a} /></td>
         <td className="p-3"><AiStatus a={a} status={cycle.status} /></td>
         <td className="p-3">

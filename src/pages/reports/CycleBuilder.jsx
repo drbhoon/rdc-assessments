@@ -154,7 +154,7 @@ function FilterPanel({ draft, setDraft, options, appliedCount, resultCount, appl
 // ── Supervisor chooser ─────────────────────────────────────────────────────
 
 /** Type a name or code; pick from the master. `people` is the whole master. */
-export function PersonPicker({ people, value, onChange, exclude, placeholder = 'Type name or code…' }) {
+export function PersonPicker({ people, value, onChange, exclude, placeholder = 'Type name or code…', needsEmail = true }) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const chosen = value ? people.find((p) => p.employee_code === value) : null;
@@ -171,7 +171,7 @@ export function PersonPicker({ people, value, onChange, exclude, placeholder = '
     return (
       <div className="flex items-center gap-2 text-sm">
         <span className="text-slate-200">{chosen.employee_name} <span className="text-slate-500">({chosen.employee_code})</span></span>
-        {!chosen.official_email_id && <span className="text-xs text-red-400">no e-mail</span>}
+        {needsEmail && !chosen.official_email_id && <span className="text-xs text-red-400">no e-mail</span>}
         <button type="button" onClick={() => { setOpen(true); setQuery(''); }} className="text-xs text-brand-400 hover:underline">change</button>
       </div>
     );
@@ -227,8 +227,9 @@ export default function CycleBuilder({ track, cycle = null, existingCodes = [], 
   const [results, setResults] = useState(null);
   const [applying, setApplying] = useState(false);
 
-  const [picked, setPicked] = useState([]); // [{ code, supervisor_code }]
+  const [picked, setPicked] = useState([]); // [{ code, supervisor_code, hr_spoc_code }]
   const [bulkSupervisor, setBulkSupervisor] = useState('');
+  const [bulkSpoc, setBulkSpoc] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState(null);
 
@@ -275,8 +276,9 @@ export default function CycleBuilder({ track, cycle = null, existingCodes = [], 
     setResults(null);
   }
 
+  const blank = (code) => ({ code, supervisor_code: '', hr_spoc_code: '' });
   const toggle = (code) => setPicked((list) => (
-    list.some((p) => p.code === code) ? list.filter((p) => p.code !== code) : [...list, { code, supervisor_code: '' }]
+    list.some((p) => p.code === code) ? list.filter((p) => p.code !== code) : [...list, blank(code)]
   ));
   const allShownPicked = shown.length > 0 && shown.every((p) => pickedSet.has(p.employee_code));
   const toggleAllShown = () => setPicked((list) => {
@@ -285,21 +287,25 @@ export default function CycleBuilder({ track, cycle = null, existingCodes = [], 
       return list.filter((p) => !drop.has(p.code));
     }
     const have = new Set(list.map((p) => p.code));
-    return [...list, ...shown.filter((p) => !have.has(p.employee_code)).map((p) => ({ code: p.employee_code, supervisor_code: '' }))];
+    return [...list, ...shown.filter((p) => !have.has(p.employee_code)).map((p) => blank(p.employee_code))];
   });
-  const setSupervisor = (code, sup) => setPicked((list) => list.map((p) => (p.code === code ? { ...p, supervisor_code: sup } : p)));
-  const applyBulk = () => {
-    if (!bulkSupervisor) return;
-    setPicked((list) => list.map((p) => (p.supervisor_code || p.code === bulkSupervisor ? p : { ...p, supervisor_code: bulkSupervisor })));
+  /** field is 'supervisor_code' or 'hr_spoc_code'. */
+  const setRole = (code, field, value) => setPicked((list) => list.map((p) => (p.code === code ? { ...p, [field]: value } : p)));
+  /** Fills one role for everyone who does not have it yet (never the trainee themselves). */
+  const applyBulk = (field, value) => {
+    if (!value) return;
+    setPicked((list) => list.map((p) => (p[field] || p.code === value ? p : { ...p, [field]: value })));
   };
 
   const missingSupervisor = picked.filter((p) => !p.supervisor_code).length;
+  const missingSpoc = picked.filter((p) => !p.hr_spoc_code).length;
   const noEmail = picked.filter((p) => !byCode.get(p.code)?.official_email_id).length;
 
   async function send() {
     setError(null);
     if (!picked.length) return setError('Select at least one trainee.');
     if (missingSupervisor) return setError(`Assign a supervisor to every trainee (${missingSupervisor} still without one).`);
+    if (missingSpoc) return setError(`Assign an HR SPOC to every trainee (${missingSpoc} still without one).`);
     setSending(true);
     try {
       if (adding) {
@@ -396,18 +402,25 @@ export default function CycleBuilder({ track, cycle = null, existingCodes = [], 
         <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h3 className="text-lg font-semibold text-white">Selected trainees ({picked.length})</h3>
-            <p className="text-xs text-slate-400">Every trainee needs a supervisor from the employee master.</p>
+            <p className="text-xs text-slate-400">Every trainee needs a supervisor and an HR SPOC from the employee master.</p>
           </div>
           {picked.length > 0 && (
-            <div className="flex items-end gap-2">
-              <div className="w-72">
-                <span className="mb-1 block text-xs text-slate-400">Same supervisor for everyone still without one</span>
-                <PersonPicker people={people} value={bulkSupervisor} onChange={setBulkSupervisor} />
-              </div>
-              <button onClick={applyBulk} disabled={!bulkSupervisor}
-                      className="rounded-lg border border-slate-600 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-700 disabled:opacity-40">
-                Apply
-              </button>
+            <div className="flex flex-wrap items-end gap-4">
+              {[
+                ['supervisor_code', 'Same supervisor for everyone still without one', bulkSupervisor, setBulkSupervisor],
+                ['hr_spoc_code', 'Same HR SPOC for everyone still without one', bulkSpoc, setBulkSpoc],
+              ].map(([field, label, value, setValue]) => (
+                <div key={field} className="flex items-end gap-2">
+                  <div className="w-64">
+                    <span className="mb-1 block text-xs text-slate-400">{label}</span>
+                    <PersonPicker people={people} value={value} onChange={setValue} needsEmail={field === 'supervisor_code'} />
+                  </div>
+                  <button onClick={() => applyBulk(field, value)} disabled={!value}
+                          className="rounded-lg border border-slate-600 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-700 disabled:opacity-40">
+                    Apply
+                  </button>
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -416,10 +429,10 @@ export default function CycleBuilder({ track, cycle = null, existingCodes = [], 
         ) : (
           <table className="w-full text-left text-sm">
             <thead className="text-slate-400">
-              <tr><th className="p-2">Trainee</th><th className="p-2">Location</th><th className="p-2 w-[40%]">Supervisor</th><th className="w-8" /></tr>
+              <tr><th className="p-2">Trainee</th><th className="p-2">Location</th><th className="p-2 w-[28%]">Supervisor</th><th className="p-2 w-[28%]">HR SPOC</th><th className="w-8" /></tr>
             </thead>
             <tbody>
-              {picked.map(({ code, supervisor_code }) => {
+              {picked.map(({ code, supervisor_code, hr_spoc_code }) => {
                 const p = byCode.get(code);
                 return (
                   <tr key={code} className="border-t border-slate-700">
@@ -428,7 +441,8 @@ export default function CycleBuilder({ track, cycle = null, existingCodes = [], 
                       {p && !p.official_email_id && <span className="ml-2 text-xs text-red-400">no e-mail in master</span>}
                     </td>
                     <td className="p-2 text-slate-400">{p?.location}</td>
-                    <td className="p-2"><PersonPicker people={people} value={supervisor_code} exclude={code} onChange={(v) => setSupervisor(code, v)} /></td>
+                    <td className="p-2"><PersonPicker people={people} value={supervisor_code} exclude={code} onChange={(v) => setRole(code, 'supervisor_code', v)} /></td>
+                    <td className="p-2"><PersonPicker people={people} value={hr_spoc_code} exclude={code} onChange={(v) => setRole(code, 'hr_spoc_code', v)} needsEmail={false} /></td>
                     <td className="p-2">
                       <button onClick={() => toggle(code)} title="Remove" className="text-slate-500 hover:text-red-400"><X size={16} /></button>
                     </td>

@@ -50,6 +50,14 @@ function subtitle(a, cycle) {
   return [`${a.trainee_name} (${a.trainee_code})`, a.trainee_location, cycle.period_label].filter(Boolean).join(' · ');
 }
 
+/** The second line: who supervises, and the trainee's HR SPOC. */
+function contacts(a) {
+  return [
+    a.supervisor_name && `Supervisor: ${a.supervisor_name}`,
+    a.hr_spoc_name && `HR SPOC: ${a.hr_spoc_name}`,
+  ].filter(Boolean).join(' · ');
+}
+
 /**
  * @param a      assignment row (ai_result, trainee_*, supervisor_*)
  * @param cycle  cycle row
@@ -79,6 +87,7 @@ export function reportHtml(a, cycle, { withSupervisor = false } = {}) {
     <div>
         <h1 style="margin: 0; color: #2E7D32; font-size: 22px;">${TRACK_TITLE[cycle.track]}</h1>
         <p style="margin: 5px 0; color: #666;">Trainee: <strong>${escapeHtml(subtitle(a, cycle))}</strong></p>
+        ${contacts(a) ? `<p style="margin: 0; color: #666; font-size: 13px;">${escapeHtml(contacts(a))}</p>` : ''}
     </div>
     <div style="text-align: right; white-space: nowrap;">
         <div style="font-size: 24px; font-weight: bold; color: #F57C00;">${r.percent}%</div>
@@ -151,6 +160,7 @@ function pdfCopy(a) {
     trainee_name: pdfSafe(a.trainee_name),
     trainee_location: pdfSafe(a.trainee_location),
     supervisor_name: pdfSafe(a.supervisor_name),
+    hr_spoc_name: pdfSafe(a.hr_spoc_name),
     supervisor_comments: pdfSafe(a.supervisor_comments),
     ai_result: {
       ...r,
@@ -201,6 +211,9 @@ export function reportPdf(original, cycleIn, { withSupervisor = false } = {}) {
       .text(TRACK_TITLE[cycle.track], titleX, top, { width: width - (titleX - left) - 110 });
     doc.font('Helvetica').fontSize(10).fillColor(MUTED)
       .text(subtitle(a, cycle), titleX, doc.y + 2, { width: width - (titleX - left) - 110 });
+    if (contacts(a)) {
+      doc.fontSize(9).text(contacts(a), titleX, doc.y + 1, { width: width - (titleX - left) - 110 });
+    }
     const afterTitle = doc.y;
     doc.font('Helvetica-Bold').fontSize(22).fillColor(ORANGE)
       .text(`${r.percent}%`, left + width - 110, top, { width: 110, align: 'right' });
