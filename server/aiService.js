@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
+import { fileInput, readableFile, respond } from './openai.js';
 
 const HTML_OUTPUT_INSTRUCTIONS = `
 ## OUTPUT FORMAT - CRITICAL INSTRUCTION
@@ -289,13 +289,6 @@ If a candidate's answer/entry contains fewer than 10 words (or is completely bla
 ${HTML_OUTPUT_INSTRUCTIONS}`;
 
 export const evaluateReport = async (reportText, type = 'ops', fileData = null, mimeType = null) => {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-        throw new Error('Gemini API Key is not set in environment variables on the backend.');
-    }
-
-    const ai = new GoogleGenAI({ apiKey });
-    
     let promptToUse;
     switch (type) {
         case 'sales': promptToUse = SYSTEM_PROMPT_SALES; break;
@@ -309,36 +302,22 @@ export const evaluateReport = async (reportText, type = 'ops', fileData = null, 
     }
 
     try {
-        let contents;
-        if (fileData && mimeType) {
-            // Strip standard dataURL prefix "data:mime;base64," if present
-            const cleanBase64 = fileData.includes(',') ? fileData.split(',')[1] : fileData;
-            contents = [
-                {
-                    inlineData: {
-                        mimeType: mimeType,
-                        data: cleanBase64
-                    }
-                },
+        let input;
+        if (fileData && mimeType && readableFile(mimeType)) {
+            input = fileInput(
+                { data: fileData, mime: mimeType },
                 "Please evaluate this document according to your system instructions."
-            ];
+            );
         } else {
-            contents = reportText;
+            input = reportText;
         }
 
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: contents,
-            config: {
-                systemInstruction: promptToUse,
-                temperature: 0.1, 
-            }
-        });
+        const html = await respond({ instructions: promptToUse, input, maxOutputTokens: 12000 });
 
-        // Strip any markdown code block wrappers if Gemini accidentally includes them
-        return response.text.replace(/^\s*```html/i, '').replace(/\s*```\s*$/, '');
+        // Strip any markdown code block wrappers if the model includes them
+        return html.replace(/^\s*```html/i, '').replace(/\s*```\s*$/, '');
     } catch (error) {
-        console.error('Error calling Gemini API on backend:', error);
-        throw new Error('Failed to evaluate report. Ensure API key is valid.');
+        console.error('Error calling OpenAI on backend:', error);
+        throw new Error(`Failed to evaluate report. ${error.message || ''}`.trim());
     }
 };

@@ -659,7 +659,7 @@ function AdminDashboard({ consoleKey = 'assessment' }) {
         {appState === 'api' && (
           <div className="text-center bg-slate-800/50 p-16 rounded-2xl border border-slate-700/50 flex flex-col items-center justify-center min-h-[400px] max-w-3xl mx-auto">
             <Loader2 className="animate-spin text-brand-500 mb-6" size={48} />
-            <h2 className="text-xl font-semibold mb-2 text-white">Evaluating with Gemini AI...</h2>
+            <h2 className="text-xl font-semibold mb-2 text-white">Evaluating with AI...</h2>
               <p className="text-slate-400 max-w-sm mx-auto">Analyzing the report against the RDC skill parameters. This usually takes 5-15 seconds.</p>
           </div>
         )}

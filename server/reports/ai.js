@@ -1,5 +1,5 @@
 /**
- * Gemini calls for monthly trainee reports.
+ * AI calls for monthly trainee reports (OpenAI, through ../openai.js).
  *
  * Scoring follows the rules the Operations and Sales evaluators have always
  * used — the same six criteria, 1 to 5 each, out of 30, and zero for any
@@ -8,9 +8,7 @@
  * text inside markup. Here it returns the scores as data; the app adds them up,
  * renders the report and writes the Excel summary from the same numbers.
  */
-import { GoogleGenAI } from '@google/genai';
-
-const MODEL = 'gemini-2.5-flash';
+import { fileInput, readableFile, respond } from '../openai.js';
 
 export const CRITERIA = {
   ops: [
@@ -60,22 +58,26 @@ If the trainee's entry for a criterion contains fewer than 10 words (or is compl
 you MUST award exactly ZERO (0) for that criterion. No exceptions.
 
 ## OUTPUT
-Return JSON only, matching the schema. "criteria" must list the six criteria above, in that order,
+Return JSON matching the schema. "criteria" must list the six criteria above, in that order,
 with their exact names. "insight" is a detailed observation on that specific area (2-3 sentences).
 "executive_summary" is 2-3 sentences on the trainee's core competencies and readiness.
 "strengths", "gaps" and "roadmap" have exactly three items each; the roadmap items are actionable steps.`;
 }
 
+// Strict structured output: every object closed, every field required. The
+// 0-5 range is stated in the prompt and enforced in code below.
 const EVALUATION_SCHEMA = {
   type: 'object',
+  additionalProperties: false,
   properties: {
     criteria: {
       type: 'array',
       items: {
         type: 'object',
+        additionalProperties: false,
         properties: {
           name: { type: 'string' },
-          score: { type: 'integer', minimum: 0, maximum: 5 },
+          score: { type: 'integer' },
           insight: { type: 'string' },
         },
         required: ['name', 'score', 'insight'],
@@ -91,6 +93,7 @@ const EVALUATION_SCHEMA = {
 
 const JUDGE_SCHEMA = {
   type: 'object',
+  additionalProperties: false,
   properties: {
     verdict: { type: 'string', enum: ['copied', 'repeated', 'template', 'coincidental'] },
     explanation: { type: 'string' },
@@ -98,47 +101,13 @@ const JUDGE_SCHEMA = {
   required: ['verdict', 'explanation'],
 };
 
-let client = null;
-function ai() {
-  if (!process.env.GEMINI_API_KEY) {
-    throw new Error('Gemini API Key is not set in environment variables on the backend.');
-  }
-  if (!client) {
-    // GEMINI_BASE_URL is unset in every real deployment; it exists so the
-    // whole cycle can be exercised locally against a stand-in.
-    const httpOptions = process.env.GEMINI_BASE_URL ? { baseUrl: process.env.GEMINI_BASE_URL } : undefined;
-    client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY, httpOptions });
-  }
-  return client;
-}
-
-/** Gemini is often briefly overloaded; three tries with a pause between. */
-async function generate(request) {
-  let last;
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    try {
-      return await ai().models.generateContent(request);
-    } catch (err) {
-      last = err;
-      if (attempt < 3) await new Promise((r) => setTimeout(r, attempt * 4000));
-    }
-  }
-  throw last;
-}
-
-function parseJson(text) {
-  const clean = String(text || '').replace(/^\s*```(?:json)?/i, '').replace(/```\s*$/, '').trim();
-  return JSON.parse(clean);
-}
-
-/** The report as Gemini content: the file itself when it can read one, else text. */
+/** The report as model input: the file itself when it can read one, else text. */
 export function reportContent({ fileData, mime, text }) {
-  const visual = mime === 'application/pdf' || String(mime || '').startsWith('image/');
-  if (visual && fileData) {
-    return [
-      { inlineData: { mimeType: mime, data: Buffer.from(fileData).toString('base64') } },
+  if (readableFile(mime) && fileData) {
+    return fileInput(
+      { data: fileData, mime },
       'Please evaluate this monthly report according to your system instructions.',
-    ];
+    );
   }
   return `Monthly report:\n\n${text || ''}`;
 }
@@ -149,17 +118,12 @@ export function reportContent({ fileData, mime, text }) {
  *            points, percent }
  */
 export async function evaluateReport(track, report) {
-  const response = await generate({
-    model: MODEL,
-    contents: reportContent(report),
-    config: {
-      systemInstruction: evaluationPrompt(track),
-      temperature: 0.1,
-      responseMimeType: 'application/json',
-      responseJsonSchema: EVALUATION_SCHEMA,
-    },
+  const raw = await respond({
+    instructions: evaluationPrompt(track),
+    input: reportContent(report),
+    schema: EVALUATION_SCHEMA,
+    schemaName: 'trainee_report_evaluation',
   });
-  const raw = parseJson(response.text);
 
   // The six criteria are ours, not the model's: match by position, keep our
   // names, clamp each score to 0-5. A missing criterion scores zero rather
@@ -185,15 +149,15 @@ export async function evaluateReport(track, report) {
 
 /** Plain text of a scanned report, so it can be compared with the others. */
 export async function transcribe({ fileData, mime }) {
-  const response = await generate({
-    model: MODEL,
-    contents: [
-      { inlineData: { mimeType: mime, data: Buffer.from(fileData).toString('base64') } },
+  const text = await respond({
+    instructions: 'You transcribe documents. Output the text only, with no commentary.',
+    input: fileInput(
+      { data: fileData, mime },
       'Transcribe all of the text in this document exactly as written, in reading order. Output the text only, with no commentary.',
-    ],
-    config: { temperature: 0 },
+    ),
+    maxOutputTokens: 16000,
   });
-  return String(response.text || '').trim();
+  return String(text || '').trim();
 }
 
 /**
@@ -209,9 +173,12 @@ export async function judgeOverlap(flag, who) {
     : `another trainee's report (${who.other})`;
   const passages = flag.passages.map((p, i) => `Passage ${i + 1} (${p.words} words):\n"${p.text}"`).join('\n\n');
 
-  const response = await generate({
-    model: MODEL,
-    contents: `A monthly trainee report by ${who.subject} shares ${flag.share}% of its content with ${relation}.
+  const raw = await respond({
+    instructions: 'You help HR review overlap between monthly trainee reports. Reply in JSON matching the schema.',
+    schema: JUDGE_SCHEMA,
+    schemaName: 'overlap_judgement',
+    maxOutputTokens: 2000,
+    input: `A monthly trainee report by ${who.subject} shares ${flag.share}% of its content with ${relation}.
 The longest identical passages are below (lower-cased, punctuation removed).
 
 ${passages}
@@ -223,13 +190,7 @@ Decide which it is:
 - "coincidental": generic wording any two people could write independently.
 
 Give a one or two sentence explanation HR can read, naming what was shared.`,
-    config: {
-      temperature: 0,
-      responseMimeType: 'application/json',
-      responseJsonSchema: JUDGE_SCHEMA,
-    },
   });
-  const raw = parseJson(response.text);
   const verdicts = ['copied', 'repeated', 'template', 'coincidental'];
   return {
     verdict: verdicts.includes(raw.verdict) ? raw.verdict : 'copied',

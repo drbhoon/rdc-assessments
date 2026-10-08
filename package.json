@@ -12,7 +12,6 @@
     "test": "node --test server/**/*.test.js"
   },
   "dependencies": {
-    "@google/genai": "^1.43.0",
     "@tailwindcss/vite": "^4.2.1",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",

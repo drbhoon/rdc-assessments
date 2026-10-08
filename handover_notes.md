@@ -71,12 +71,12 @@ This document summarizes the engineering history, architectural improvements, an
 - **Solution**: the Operations and Sales dropdown entries now open report **cycles** (`server/reports/`, `src/pages/reports/`):
   1. HR picks the month, the trainees' last date and the supervisors' last date, selects trainees from the employee master (the same filter panel as hr.rdcc.ai/master) and assigns each a supervisor from the master. Only employee codes leave the browser; names, e-mails and plants are resolved server-side.
   2. Each trainee is e-mailed their own link (`/report/:token`) and can upload or replace a PDF, Word file or photo until the last date. HR can reopen one trainee, upload on their behalf, or re-send a link.
-  3. After the last date a scheduler tick (`engine.js`, every 5 min) extracts the text (AI transcription for scans and photos), finds **copy** flags (other trainees, this cycle and every earlier cycle of the track) and **repeat** flags (the trainee's own earlier reports) with a deterministic 7-word-shingle overlap (`similarity.js`, unit tested), asks Gemini whether each overlap is real copying or template text, then scores each report on the existing six criteria.
+  3. After the last date a scheduler tick (`engine.js`, every 5 min) extracts the text (AI transcription for scans and photos), finds **copy** flags (other trainees, this cycle and every earlier cycle of the track) and **repeat** flags (the trainee's own earlier reports) with a deterministic 7-word-shingle overlap (`similarity.js`, unit tested), asks the AI whether each overlap is real copying or template text, then scores each report on the existing six criteria.
   4. Each supervisor gets one link (`/review/:token`) listing their trainees: the original report, the AI assessment PDF, the red flags, and a 1–5 rating with comments.
   5. HR downloads the Excel summary and presses "Send results", which e-mails each trainee the AI report (PDF) and the supervisor's rating. Red flags never go to the trainee.
 - Reminders go out once, 2 days before each deadline. Every step is stamped in the database, so a restart resumes and nothing is e-mailed twice.
-- Scores are returned by Gemini as JSON (`responseJsonSchema`) and totalled in code — the old screen had the model write HTML, so the score existed only as text.
-- **Verify locally**: `npm test` (detector). For the whole cycle, run the server against a local Postgres, a stand-in master and Gemini (`GEMINI_BASE_URL` points the SDK elsewhere) and an SMTP sink.
+- Scores are returned by the AI as JSON (strict `json_schema` structured output) and totalled in code — the old screen had the model write HTML, so the score existed only as text.
+- **Verify locally**: `npm test` (detector). For the whole cycle, run the server against a local Postgres, a stand-in master and OpenAI (`OPENAI_BASE_URL` points the calls elsewhere) and an SMTP sink.
 
 ---
 
@@ -85,7 +85,8 @@ For the application to run successfully in development and production, the follo
 
 | Variable | Description | Location / Value |
 | :--- | :--- | :--- |
-| `GEMINI_API_KEY` | Private Gemini API Key | Railway system variables & `.env.local` |
+| `OPENAI_API_KEY` | Private OpenAI API key (shared with the LMS and chatbot on hr.rdcc.ai) | Railway system variables & `.env.local` |
+| `OPENAI_MODEL` | Optional; defaults to `gpt-5.4-mini` | Leave unset unless moving model |
 | `DATABASE_URL` | PostgreSQL connection string | Railway system variables (falls back to memory DB in dev) |
 | `PORT` | Node.js Express server port | Defaults to `3000` |
 | `VITE_ADMIN_PASSWORD` | Frontend Admin Dashboard password | Optional (defaults to `admin@rdc2026` if unset) |
@@ -93,4 +94,9 @@ For the application to run successfully in development and production, the follo
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | E-mail for report-cycle links and results | Same account PARAKH uses |
 | `PUBLIC_URL` | Base of the links in those e-mails | `https://hr.rdcc.ai/eval` |
 | `REPORT_TICK_MS` | Scheduler interval | Optional, default 300000 (5 min) |
-| `GEMINI_BASE_URL` | Points the Gemini SDK at a stand-in | Testing only — never set in production |
+| `OPENAI_BASE_URL` | Points the OpenAI calls at a stand-in | Testing only — never set in production |
+
+### Moved from Gemini to OpenAI (2026-10-08)
+- Every AI call now goes through `server/openai.js`: plain `fetch` to the Responses API (as the LMS does), three tries on 408/429/5xx, `reasoning.effort: low`, `store: false`.
+- PDFs are sent as `input_file`, photos as `input_image`; DOCX and digital PDFs are still read as text first (`server/reports/extract.js`).
+- Report scoring and overlap judging use strict `json_schema` output; the 0-5 clamp and the totals stay in code. `@google/genai` is removed. Sections above that mention Gemini describe the history.
