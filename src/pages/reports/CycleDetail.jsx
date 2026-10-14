@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  AlertCircle, ArrowLeft, Bell, Download, FileText, Flag, Loader2, Mail, Play, RefreshCw,
+  AlertCircle, ArrowLeft, Bell, Copy, Download, FileText, Flag, Loader2, Mail, Play, RefreshCw,
   Trash2, Upload, UserPlus, X, ChevronDown, ChevronRight,
 } from 'lucide-react';
 import { withBase } from '../../basePath';
@@ -106,6 +106,25 @@ function RowActions({ a, cycle, people, onChanged, setNote }) {
     }
   };
 
+  // Copies the trainee's own upload link. The clipboard can be refused (an
+  // old browser, a page not on https); then the link is shown to copy by hand.
+  const copyLink = async () => {
+    setBusy(true);
+    try {
+      const { link } = await api(`${base}/link`);
+      try {
+        await navigator.clipboard.writeText(link);
+        setNote(`Link for ${a.trainee_name} copied. It opens their upload page — share it only with them.`);
+      } catch {
+        window.prompt(`Copy the link for ${a.trainee_name}:`, link);
+      }
+    } catch (err) {
+      setNote(err.message, true);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const uploadFor = async (e) => {
     const file = e.target.files?.[0];
     e.target.value = '';
@@ -128,10 +147,15 @@ function RowActions({ a, cycle, people, onChanged, setNote }) {
             Reopen link
           </button>
         </div>
-        <button disabled={busy} className={btn}
-                onClick={() => run(() => api(`${base}/resend-invite`, { method: 'POST' }), `Link re-sent to ${a.trainee_email}.`)}>
-          <Mail size={14} /> Re-send link
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button disabled={busy} className={btn}
+                  onClick={() => run(() => api(`${base}/resend-invite`, { method: 'POST' }), `Link re-sent to ${a.trainee_email}.`)}>
+            <Mail size={14} /> Re-send link
+          </button>
+          <button disabled={busy} className={btn} onClick={copyLink}>
+            <Copy size={14} /> Copy link
+          </button>
+        </div>
       </div>
       <div className="space-y-2">
         <p className="font-semibold text-slate-200">Supervisor</p>

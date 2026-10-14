@@ -16,7 +16,7 @@ import { fetchByCodes, fetchEmployees, fetchFilterOptions, masterConfigured } fr
 import { ACCEPTED_TYPES, MAX_FILE_BYTES } from './extract.js';
 import {
   canUpload, evaluateCycle, notifySupervisors, processLate, remindSupervisors, remindTrainees,
-  sendInvites, sendResultsForCycle, sendTraineeInviteFor, uploadDeadline,
+  sendInvites, sendResultsForCycle, sendTraineeInviteFor, traineeLink, uploadDeadline,
 } from './engine.js';
 import { RATING_LABEL, TRACK_NAME, istDate, reportHtml, reportPdf } from './render.js';
 
@@ -437,6 +437,15 @@ export function mountReportRoutes({ router, adminRouter, pool }) {
     const mailed = await sendTraineeInviteFor(pool, a, cycle, 'invite');
     if (!mailed.ok) return res.status(502).json({ error: mailed.error });
     res.json({ ok: true });
+  }));
+
+  // The trainee's upload link, for HR to paste into WhatsApp or a mail of
+  // their own. Fetched on demand rather than listed with the cycle, so the
+  // links are not all sitting in the page.
+  adminRouter.get('/report-cycles/:id/trainees/:aid/link', guard(async (req, res) => {
+    const a = await loadAssignment(req);
+    if (!a) return res.status(404).json({ error: 'Trainee not found in this cycle.' });
+    res.json({ link: traineeLink(a.token) });
   }));
 
   adminRouter.post('/report-cycles/:id/trainees/:aid/re-evaluate', guard(async (req, res) => {
