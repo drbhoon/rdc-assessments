@@ -325,8 +325,12 @@ export async function notifySupervisors(pool, cycleId) {
   }
 }
 
-/** Reminder to supervisors with evaluated reports they have not yet rated. */
-export async function remindSupervisors(pool, cycleId, { automatic = false } = {}) {
+/**
+ * Reminder to supervisors with evaluated reports they have not yet rated.
+ * `cc`: the HR person who pressed "Remind now" gets a copy of each mail; the
+ * automatic reminder has nobody to copy.
+ */
+export async function remindSupervisors(pool, cycleId, { automatic = false, cc } = {}) {
   const { rows: [cycle] } = await pool.query('SELECT * FROM report_cycles WHERE id = $1', [cycleId]);
   // The automatic reminder skips anyone whose first notice is under a day old;
   // HR pressing "Remind now" reaches everyone with something outstanding.
@@ -344,7 +348,7 @@ export async function remindSupervisors(pool, cycleId, { automatic = false } = {
       [cycleId, sup.supervisor_code],
     );
     if (!trainees.length) continue;
-    const result = await sendSupervisorNotice({ sup, cycle, trainees, link: supervisorLink(sup.token), kind: 'reminder' });
+    const result = await sendSupervisorNotice({ sup, cycle, trainees, link: supervisorLink(sup.token), kind: 'reminder', cc });
     if (result.ok) {
       sent++;
       await pool.query('UPDATE report_supervisors SET reminded_at = now() WHERE id = $1', [sup.id]);
@@ -353,7 +357,43 @@ export async function remindSupervisors(pool, cycleId, { automatic = false } = {
     }
   }
   await pool.query('UPDATE report_cycles SET supervisors_reminded_at = now() WHERE id = $1', [cycleId]);
-  return { sent };
+  return { sent, copiedTo: cc || null };
+}
+
+/**
+ * Reminder to ONE supervisor, from the row on HR's screen. Their mail lists
+ * every report of theirs still unrated in the cycle, as the bulk reminder's
+ * does — one link covers them all.
+ *
+ * Deliberately leaves report_cycles.supervisors_reminded_at alone: that stamp
+ * is what stops the automatic reminder, and nudging one late supervisor must
+ * not cancel it for everyone else.
+ *
+ * @returns { sent: true, pending, email } or { sent: false, error }
+ */
+export async function remindSupervisor(pool, cycleId, supervisorCode, { cc } = {}) {
+  const { rows: [cycle] } = await pool.query('SELECT * FROM report_cycles WHERE id = $1', [cycleId]);
+  const { rows: [sup] } = await pool.query(
+    'SELECT * FROM report_supervisors WHERE cycle_id = $1 AND supervisor_code = $2',
+    [cycleId, supervisorCode],
+  );
+  if (!cycle || !sup) return { sent: false, error: 'This supervisor has no link in this cycle.' };
+
+  const { rows: trainees } = await pool.query(
+    `SELECT trainee_name, trainee_code, trainee_location FROM report_assignments
+      WHERE cycle_id = $1 AND supervisor_code = $2 AND eval_status = 'done' AND supervisor_rating IS NULL
+      ORDER BY trainee_name`,
+    [cycleId, supervisorCode],
+  );
+  if (!trainees.length) return { sent: false, error: `${sup.supervisor_name} has nothing left to rate.` };
+
+  const result = await sendSupervisorNotice({ sup, cycle, trainees, link: supervisorLink(sup.token), kind: 'reminder', cc });
+  if (!result.ok) {
+    await pool.query('UPDATE report_supervisors SET notify_error = $2 WHERE id = $1', [sup.id, result.error]);
+    return { sent: false, error: result.error };
+  }
+  await pool.query('UPDATE report_supervisors SET reminded_at = now(), notify_error = NULL WHERE id = $1', [sup.id]);
+  return { sent: true, pending: trainees.length, email: sup.supervisor_email, copiedTo: cc || null };
 }
 
 /** Reminder to trainees who were invited and have not uploaded. */

@@ -34,12 +34,14 @@ function getTransport() {
 }
 
 /** @returns { ok: true } | { ok: false, error } */
-async function send({ to, subject, html, attachments }) {
+async function send({ to, cc, subject, html, attachments }) {
   if (!mailConfigured()) return { ok: false, error: 'E-mail is not configured (SMTP_HOST).' };
   try {
     await getTransport().sendMail({
       from: process.env.SMTP_FROM || process.env.SMTP_USER,
       to,
+      // A copy to someone already in To would arrive twice.
+      cc: cc && String(cc).toLowerCase() !== String(to).toLowerCase() ? cc : undefined,
       subject,
       html,
       attachments,
@@ -87,11 +89,13 @@ ${button(link, 'Upload my report')}`),
   });
 }
 
-export function sendSupervisorNotice({ sup, cycle, trainees, link, kind = 'notice' }) {
+/** @param cc  optional: the HR person who sent a reminder by hand gets a copy */
+export function sendSupervisorNotice({ sup, cycle, trainees, link, kind = 'notice', cc }) {
   const list = trainees.map((t) => `<li>${escapeHtml(t.trainee_name)} (${escapeHtml(t.trainee_code)})${t.trainee_location ? ` — ${escapeHtml(t.trainee_location)}` : ''}</li>`).join('');
   const reminder = kind === 'reminder';
   return send({
     to: sup.supervisor_email,
+    cc,
     subject: reminder
       ? `Reminder: trainee reports awaiting your rating — due ${istDate(cycle.review_by)}`
       : `Trainee reports ready for your review — ${cycle.period_label}`,

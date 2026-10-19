@@ -328,7 +328,7 @@ export default function CycleDetail({ cycleId, onBack }) {
           {cycle.status === 'reviewing' && (
             <>
               <button disabled={busy} className={btn}
-                      onClick={() => act(() => api(`/api/admin/report-cycles/${cycle.id}/remind`, { method: 'POST', body: { who: 'supervisors' } }), (o) => `Reminder sent to ${o.sent} supervisor(s) with reports still to rate.`)}>
+                      onClick={() => act(() => api(`/api/admin/report-cycles/${cycle.id}/remind`, { method: 'POST', body: { who: 'supervisors' } }), (o) => `Reminder sent to ${o.sent} supervisor(s) with reports still to rate.${o.copiedTo && o.sent ? ` A copy of each went to ${o.copiedTo}.` : ''}`)}>
                 <Bell size={14} /> Remind supervisors now
               </button>
               <button disabled={busy || !awaitingResults} className={btnPrimary} onClick={() => setModal({ kind: 'results' })}>
@@ -377,7 +377,12 @@ export default function CycleDetail({ cycleId, onBack }) {
             {assignments.map((a) => (
               <FragmentRow key={a.id} a={a} cycle={cycle} open={expanded === a.id}
                            onToggle={() => setExpanded(expanded === a.id ? null : a.id)}
-                           onReport={() => openReport(a)} onFlags={() => setModal({ kind: 'flags', a })}>
+                           onReport={() => openReport(a)} onFlags={() => setModal({ kind: 'flags', a })}
+                           busy={busy}
+                           onRemind={() => act(
+                             () => api(`/api/admin/report-cycles/${cycle.id}/trainees/${a.id}/remind-supervisor`, { method: 'POST' }),
+                             (o) => `Reminder sent to ${a.supervisor_name} (${o.email}) for ${o.pending} report${o.pending === 1 ? '' : 's'} still to rate.${o.copiedTo ? ` Copy to ${o.copiedTo}.` : ''}`,
+                           )}>
                 <RowActions a={a} cycle={cycle} people={people} setNote={setNote}
                             onChanged={() => { setLastAction(Date.now()); load(); }} />
               </FragmentRow>
@@ -428,7 +433,7 @@ export default function CycleDetail({ cycleId, onBack }) {
   );
 }
 
-function FragmentRow({ a, cycle, open, onToggle, onReport, onFlags, children }) {
+function FragmentRow({ a, cycle, open, onToggle, onReport, onFlags, onRemind, busy, children }) {
   return (
     <>
       <tr className="border-t border-slate-800 align-top hover:bg-slate-800/40">
@@ -457,7 +462,22 @@ function FragmentRow({ a, cycle, open, onToggle, onReport, onFlags, children }) 
         <td className="p-3">
           {a.supervisor_rating
             ? <span className="font-semibold text-sky-300" title={a.supervisor_comments}>{a.supervisor_rating}/5 <span className="text-xs font-normal text-slate-400">{RATING_LABEL[a.supervisor_rating]}</span></span>
-            : a.eval_status === 'done' ? <span className="text-slate-500">awaiting</span> : <span className="text-slate-600">—</span>}
+            : a.eval_status === 'done' ? (
+              <div>
+                <span className="text-slate-500">awaiting</span>
+                {cycle.status === 'reviewing' && (
+                  <>
+                    <button disabled={busy} onClick={onRemind} title={`E-mail ${a.supervisor_name} a reminder`}
+                            className="ml-2 inline-flex items-center gap-1 rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-xs font-medium text-amber-300 hover:bg-amber-500/20 disabled:opacity-40">
+                      <Bell size={12} /> Remind
+                    </button>
+                    {a.supervisor_reminded_at && (
+                      <span className="block text-xs text-slate-500">reminded {fmtDateTime(a.supervisor_reminded_at)}</span>
+                    )}
+                  </>
+                )}
+              </div>
+            ) : <span className="text-slate-600">—</span>}
         </td>
         <td className="p-3 text-xs">
           {a.results_sent_at ? <span className="text-emerald-300">sent {fmtDate(a.results_sent_at)}</span>

@@ -15,7 +15,7 @@ import { ensureReportSchema } from './schema.js';
 import { fetchByCodes, fetchEmployees, fetchFilterOptions, masterConfigured } from './master.js';
 import { ACCEPTED_TYPES, MAX_FILE_BYTES } from './extract.js';
 import {
-  canUpload, evaluateCycle, notifySupervisors, processLate, remindSupervisors, remindTrainees,
+  canUpload, evaluateCycle, notifySupervisors, processLate, remindSupervisor, remindSupervisors, remindTrainees,
   sendInvites, sendResultsForCycle, sendTraineeInviteFor, traineeLink, uploadDeadline,
 } from './engine.js';
 import { RATING_LABEL, TRACK_NAME, istDate, reportHtml, reportPdf } from './render.js';
@@ -80,7 +80,17 @@ const ASSIGNMENT_COLUMNS = `id, cycle_id, trainee_code, trainee_name, trainee_em
   reopen_until, invited_at, invite_error,
   file_name, file_mime, file_size, submitted_at, submitted_by, text_source, eval_status, eval_error,
   evaluated_at, ai_percent, ai_points, flags, supervisor_rating, supervisor_comments, reviewed_at,
-  results_sent_at, results_error`;
+  results_sent_at, results_error,
+  (SELECT s.reminded_at FROM report_supervisors s
+    WHERE s.cycle_id = report_assignments.cycle_id AND s.supervisor_code = report_assignments.supervisor_code
+  ) AS supervisor_reminded_at`;
+
+/**
+ * Who pressed the button, to copy them on the reminder. On hr.rdcc.ai the
+ * platform's sign-in supplies it (req.hrEmail, see server/index.js); with no
+ * SSO (Railway, local) there is nobody to copy and the mail goes as before.
+ */
+const pressedBy = (req) => (/^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/.test(req.hrEmail || '') ? req.hrEmail : undefined);
 
 export function mountReportRoutes({ router, adminRouter, pool }) {
   const ready = () => ensureReportSchema(pool);
@@ -439,6 +449,18 @@ export function mountReportRoutes({ router, adminRouter, pool }) {
     res.json({ ok: true });
   }));
 
+  // Reminds this row's supervisor only. Their mail lists all of their reports
+  // still unrated in the cycle, since one link covers them all.
+  adminRouter.post('/report-cycles/:id/trainees/:aid/remind-supervisor', guard(async (req, res) => {
+    const a = await loadAssignment(req);
+    if (!a) return res.status(404).json({ error: 'Trainee not found in this cycle.' });
+    const cycle = await loadCycle(a.cycle_id);
+    if (cycle.status !== 'reviewing') return res.status(400).json({ error: 'Supervisors are not rating this cycle yet.' });
+    const out = await remindSupervisor(pool, cycle.id, a.supervisor_code, { cc: pressedBy(req) });
+    if (!out.sent) return res.status(400).json({ error: out.error });
+    res.json(out);
+  }));
+
   // The trainee's upload link, for HR to paste into WhatsApp or a mail of
   // their own. Fetched on demand rather than listed with the cycle, so the
   // links are not all sitting in the page.
@@ -473,7 +495,7 @@ export function mountReportRoutes({ router, adminRouter, pool }) {
     if (!cycle) return res.status(404).json({ error: 'Cycle not found.' });
     const who = req.body?.who;
     if (who === 'trainees') return res.json(await remindTrainees(pool, cycle.id));
-    if (who === 'supervisors') return res.json(await remindSupervisors(pool, cycle.id));
+    if (who === 'supervisors') return res.json(await remindSupervisors(pool, cycle.id, { cc: pressedBy(req) }));
     res.status(400).json({ error: 'Remind trainees or supervisors?' });
   }));
 
