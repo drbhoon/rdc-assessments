@@ -3,6 +3,9 @@ import { Mic, MicOff, ChevronRight, ChevronLeft, CheckCircle2, User, GraduationC
 import { kaushalTechQuestions } from '../data/kaushalTechQuestions';
 import { kaushalBatchingQuestions } from '../data/kaushalBatchingQuestions';
 import { withBase } from '../basePath';
+import { FRESHER_QUESTIONS, TARA_INTERVIEWS, taraGreeting, taraQuestion } from '../../shared/taraInterview.js';
+import TaraPanel from '../tara/TaraPanel';
+import { speakLine, stopSpeaking, unlockAudio } from '../tara/voice';
 
 // All major Indian languages supported by the Web Speech API (BCP-47 tags)
 const INDIAN_LANGUAGES = [
@@ -20,18 +23,6 @@ const INDIAN_LANGUAGES = [
   { label: 'Urdu',               value: 'ur-IN' },
   { label: 'Assamese',           value: 'as-IN' },
   { label: 'Kashmiri',           value: 'ks-IN' },
-];
-
-const FRESHER_QUESTIONS = [
-  "What are your short term and long term goals?",
-  "Ready mix concrete plants are located pan-India. Are you ready to relocate anywhere in India?",
-  "Why do you need this job? What is your motivation?",
-  "In this industry, 24-hour continuous pours happen. Are you willing to work a 24-hour shift if an emergency requires it?",
-  "Tell me about your family background. What do your parents do, and what responsibilities do you have at home?",
-  "If you are assigned a task at 6 PM and told it must be completed by 6 AM, how would you ensure it gets done?",
-  "The RMC industry is physically demanding and peak hours can be 12 hours long. How comfortable are you with this?",
-  "What have you been doing during the gap since your exams finished?",
-  "Walk me through your typical daily schedule, from the time you wake up until you go to sleep. What do you do on weekends?"
 ];
 
 const SALES_QUESTIONS = [
@@ -111,7 +102,24 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
   const [interimTranscript, setInterimTranscript] = useState('');
   
   const [isListening, setIsListening] = useState(false);
+  // The recogniser that is running now (one per question), whether the
+  // candidate wants it on, and the question it writes into.
   const recognitionRef = useRef(null);
+  const wantListeningRef = useRef(false);
+  const stepRef = useRef(step);
+  useEffect(() => { stepRef.current = step; }, [step]);
+
+  // TARA, the AI interviewer (Fresher pilot, 2026-10-20): she reads each
+  // question aloud, then listens, nodding, while the candidate answers.
+  const taraEnabled = TARA_INTERVIEWS.has(assessmentType);
+  const interviewCode = useMemo(() => new URLSearchParams(window.location.search).get('code') || '', []);
+  const [taraSpeaking, setTaraSpeaking] = useState(false);
+  const [taraEnergy, setTaraEnergy] = useState(0);
+  const [nodSignal, setNodSignal] = useState(0);
+  const [consented, setConsented] = useState(false);
+  const spokenStepsRef = useRef(new Set());
+  const speechRunRef = useRef(0);
+  const lastNodRef = useRef(0);
 
   const [timeLeft, setTimeLeft] = useState(1200); // 20 minutes
 
@@ -172,6 +180,7 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
   }, [mcqQuestions, mcqIndex, tempSelectedOption, mcqAnswers, submitMcqPart]);
 
   const handleStartInterview = async () => {
+      if (taraEnabled) unlockAudio();
       const searchParams = new URLSearchParams(window.location.search);
       const code = searchParams.get('code');
 
@@ -203,24 +212,130 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
       setStep(1);
   };
 
-  const toggleListen = () => {
-    if (!recognitionRef.current) {
-        alert("Speech Recognition is not supported in this browser. Please use Chrome.");
-        return;
+  const startListeningRef = useRef(() => false);
+  const startListening = useCallback(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Speech Recognition is not supported in this browser. Please use Chrome.");
+      return false;
     }
-
-    if (isListening) {
-      recognitionRef.current.stop();
-      setIsListening(false);
-      setInterimTranscript('');
-    } else {
-      try {
-        recognitionRef.current.start();
-        setIsListening(true);
-      } catch (e) {
-        console.error(e);
+    if (recognitionRef.current) return true;
+    const qIndex = stepRef.current - 1;
+    let recognition;
+    try {
+      recognition = new SpeechRecognition();
+    } catch (err) {
+      console.warn("Speech Recognition could not start:", err);
+      return false;
+    }
+    recognition.continuous = true;
+    recognition.interimResults = true; // real-time text reduces lag
+    recognition.lang = selectedLang; // the candidate's chosen language
+    recognition.onresult = (event) => {
+      let finalText = '';
+      let interimText = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) finalText += event.results[i][0].transcript + ' ';
+        else interimText += event.results[i][0].transcript;
       }
+      setInterimTranscript(interimText);
+      if (finalText) {
+        setAnswers(prev => {
+          const newAnswers = [...prev];
+          if (qIndex >= 0 && qIndex < newAnswers.length) {
+            newAnswers[qIndex] = ((newAnswers[qIndex] || '') + ' ' + finalText).trim();
+          }
+          return newAnswers;
+        });
+      }
+      // TARA nods now and then while the candidate talks.
+      const now = Date.now();
+      if (now - lastNodRef.current > 3500) {
+        lastNodRef.current = now;
+        setNodSignal(n => n + 1);
+      }
+    };
+    recognition.onerror = (event) => {
+      console.error("Speech error", event.error);
+      if (['not-allowed', 'service-not-allowed', 'audio-capture'].includes(event.error)) wantListeningRef.current = false;
+    };
+    recognition.onend = () => {
+      if (recognitionRef.current === recognition) recognitionRef.current = null;
+      setInterimTranscript('');
+      // Chrome ends recognition after a silence: listen on while the
+      // candidate still wants it and is on the same question.
+      if (wantListeningRef.current && stepRef.current - 1 === qIndex) {
+        setTimeout(() => {
+          if (wantListeningRef.current && !recognitionRef.current) startListeningRef.current();
+        }, 250);
+        return;
+      }
+      setIsListening(false);
+    };
+    recognitionRef.current = recognition;
+    try {
+      recognition.start();
+    } catch (err) {
+      console.warn("Speech Recognition could not start:", err);
+      recognitionRef.current = null;
+      return false;
     }
+    wantListeningRef.current = true;
+    setIsListening(true);
+    return true;
+  }, [selectedLang]);
+  useEffect(() => { startListeningRef.current = startListening; }, [startListening]);
+
+  const stopListening = useCallback(() => {
+    wantListeningRef.current = false;
+    const recognition = recognitionRef.current;
+    recognitionRef.current = null;
+    if (recognition) {
+      recognition.onend = null; // a final result may still arrive and is kept
+      try { recognition.stop(); } catch (err) { console.warn(err); }
+    }
+    setIsListening(false);
+    setInterimTranscript('');
+  }, []);
+
+  // TARA says her lines one after another, then listens. A newer request
+  // (next question, "hear again", the candidate starting to answer) cancels
+  // the rest.
+  const stopTara = useCallback(() => {
+    speechRunRef.current += 1;
+    stopSpeaking();
+    setTaraSpeaking(false);
+    setTaraEnergy(0);
+  }, []);
+  const taraSay = useCallback((lines) => {
+    stopListening();
+    stopSpeaking();
+    const run = ++speechRunRef.current;
+    const next = (rest) => {
+      if (run !== speechRunRef.current) return;
+      if (rest.length === 0) {
+        setTaraSpeaking(false);
+        setTaraEnergy(0);
+        startListening(); // hands-free; on phones that need a tap, the candidate taps Record Audio
+        return;
+      }
+      setTaraSpeaking(true);
+      speakLine(rest[0], {
+        code: interviewCode,
+        onEnergy: setTaraEnergy,
+        onEnd: () => next(rest.slice(1)),
+      });
+    };
+    next(lines);
+  }, [interviewCode, startListening, stopListening]);
+
+  const toggleListen = () => {
+    if (isListening) {
+      stopListening();
+      return;
+    }
+    if (taraSpeaking) stopTara(); // the candidate starts answering: she stops
+    startListening();
   };
 
   const handleDetailsChange = (e) => {
@@ -242,7 +357,8 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
   };
 
   const handleNext = () => {
-      if (isListening) toggleListen(); // stop listening before moving
+      stopListening(); // stop listening before moving
+      stopTara();
       setInterimTranscript('');
       const newStep = step + 1;
       setStep(newStep);
@@ -253,7 +369,8 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
   };
   
   const handleBack = () => {
-      if (isListening) toggleListen();
+      stopListening();
+      stopTara();
       setInterimTranscript('');
       setStep(prev => prev - 1);
   };
@@ -296,74 +413,26 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
       return () => clearInterval(timerId);
     } else if (part === 'oral' && timeLeft === 0 && step <= questions.length) {
       // Auto-submit when timer hits 0
-      if (isListening) toggleListen();
+      stopListening();
+      stopTara();
       compileAndSubmit();
       setStep(questions.length + 1); // move past questions
     }
-  }, [part, step, timeLeft, questions.length, isListening]);
+  }, [part, step, timeLeft, questions.length, stopListening, stopTara]);
 
-  // Initialize Speech Recognition
+  // TARA reads each question the first time the candidate reaches it (the
+  // greeting before the first); "Hear again" repeats it.
   useEffect(() => {
-    let recognitionInstance = null;
-    try {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        const recognition = new SpeechRecognition();
-        recognition.continuous = true;
-        recognition.interimResults = true; // Use real-time parsing to reduce lag
-        recognition.lang = selectedLang; // Set by candidate's language selection
+    if (!taraEnabled || part !== 'oral' || step < 1 || step > questions.length) return;
+    if (spokenStepsRef.current.has(step)) return;
+    spokenStepsRef.current.add(step);
+    const lines = [taraQuestion(step, questions[step - 1])];
+    if (step === 1) lines.unshift(taraGreeting(details.name, questions.length));
+    taraSay(lines);
+  }, [taraEnabled, part, step, questions, details.name, taraSay]);
 
-        recognition.onresult = (event) => {
-          let finalText = '';
-          let interimText = '';
-          
-          for (let i = event.resultIndex; i < event.results.length; i++) {
-            if (event.results[i].isFinal) {
-               finalText += event.results[i][0].transcript + ' ';
-            } else {
-               interimText += event.results[i][0].transcript;
-            }
-          }
-          
-          setInterimTranscript(interimText);
-
-          if (finalText) {
-            setAnswers(prev => {
-              const newAnswers = [...prev];
-              const qIndex = step - 1;
-              if (qIndex >= 0 && qIndex < questions.length) {
-                  newAnswers[qIndex] = (newAnswers[qIndex] + ' ' + finalText).trim();
-              }
-              return newAnswers;
-            });
-          }
-        };
-
-        recognition.onerror = (event) => {
-          console.error("Speech error", event.error);
-          setIsListening(false);
-        };
-
-        recognition.onend = () => {
-          setIsListening(false);
-          setInterimTranscript('');
-        };
-
-        recognitionRef.current = recognition;
-        recognitionInstance = recognition;
-      }
-    } catch (err) {
-      console.warn("Speech Recognition initialization failed (likely unsupported by this mobile browser variant):", err);
-    }
-    
-    // Cleanup when unmounting or changing step
-    return () => {
-        if (isListening && recognitionInstance) {
-            try { recognitionInstance.stop(); } catch (err) { console.warn(err); }
-            setIsListening(false);
-        }
-    }
-  }, [step, questions.length, selectedLang, isListening]);
+  // Leaving the page: no voice or microphone left running.
+  useEffect(() => () => { stopSpeaking(); wantListeningRef.current = false; recognitionRef.current?.stop?.(); }, []);
 
   // UI rendering
   const progressPercentage = part === 'mcq' && mcqQuestions.length > 0
@@ -444,8 +513,22 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
                     </div>
                 </div>
 
+                {taraEnabled && (
+                    <div className="mt-6 p-4 rounded-xl border border-brand-500/30 bg-brand-500/5 text-left">
+                        <p className="text-sm text-slate-300 leading-relaxed">
+                            Your interviewer is <span className="font-semibold text-white">TARA, an AI interviewer</span>. She will read each question aloud and
+                            listen to your answer; what you say is written down and reviewed by RDC's HR team, who make every decision.
+                            Please turn your volume up and allow the microphone.
+                        </p>
+                        <label className="mt-3 flex items-start gap-2 text-sm text-slate-300 cursor-pointer">
+                            <input type="checkbox" checked={consented} onChange={(e) => setConsented(e.target.checked)} className="mt-1 accent-orange-500" />
+                            <span>I understand that I am interviewed by an AI and agree that my answers are recorded as text for RDC's recruitment.</span>
+                        </label>
+                    </div>
+                )}
+
                 <div className="mt-8 flex justify-end">
-                    <button onClick={handleStartInterview} disabled={!details.name || !details.qualification} className="bg-brand-600 hover:bg-brand-500 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <button onClick={handleStartInterview} disabled={!details.name || !details.qualification || (taraEnabled && !consented)} className="bg-brand-600 hover:bg-brand-500 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                         Start Interview <ChevronRight size={20} />
                     </button>
                 </div>
@@ -547,6 +630,15 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
         {/* STEP 1-N: QUESTIONS */}
         {!loadingMcq && part === 'oral' && step > 0 && step <= questions.length && (
             <div className="animate-in fade-in slide-in-from-right-4 duration-300 flex flex-col h-full">
+                {taraEnabled && (
+                    <TaraPanel
+                        mode={taraSpeaking ? 'speaking' : isListening ? 'listening' : 'idle'}
+                        energy={taraEnergy}
+                        nodSignal={nodSignal}
+                        canHearAgain={!taraSpeaking}
+                        onHearAgain={() => taraSay([taraQuestion(step, questions[step - 1])])}
+                    />
+                )}
                 <div className="flex justify-between items-start gap-4 mb-6">
                     <div>
                         <div className="mb-2 text-brand-400 font-semibold tracking-wider text-sm uppercase">

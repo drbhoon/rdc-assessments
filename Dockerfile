@@ -35,6 +35,7 @@ COPY package.json package-lock.json ./
 COPY --from=builder /app/node_modules ./node_modules
 
 COPY server ./server
+COPY shared ./shared
 COPY --from=builder /app/dist ./dist
 
 EXPOSE 3000

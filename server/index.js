@@ -8,6 +8,7 @@ import XLSX from 'xlsx';
 import { evaluateReport } from './aiService.js';
 import { mountReportRoutes } from './reports/routes.js';
 import { startScheduler } from './reports/engine.js';
+import { taraSpeakRoute } from './taraVoice.js';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 dotenv.config();
@@ -211,6 +212,15 @@ router.get('/api/interviews/:code', async (req, res) => {
         res.status(500).json({ error: "Server error fetching interview" });
     }
 });
+
+// TARA reads the Fresher interview's questions aloud (her lines only).
+router.post('/api/interviews/:code/tara/speak', taraSpeakRoute(async (code) => {
+    if (pool) {
+        const result = await pool.query('SELECT assessment_type, status FROM interviews WHERE join_code = $1', [code]);
+        return result.rows[0] || null;
+    }
+    return memoryDb.get(code) || null;
+}));
 
 // 4. Candidate submits their interview (Part B)
 router.put('/api/interviews/:code', async (req, res) => {
