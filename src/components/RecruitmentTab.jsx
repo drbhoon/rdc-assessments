@@ -5,7 +5,7 @@ import { kaushalBatchingQuestions } from '../data/kaushalBatchingQuestions';
 import { withBase } from '../basePath';
 import { FRESHER_QUESTIONS, TARA_INTERVIEWS, taraGreeting, taraQuestion } from '../../shared/taraInterview.js';
 import TaraPanel from '../tara/TaraPanel';
-import { speakLine, stopSpeaking, unlockAudio } from '../tara/voice';
+import { prefetchLines, speakLine, stopSpeaking, unlockAudio } from '../tara/voice';
 
 // All major Indian languages supported by the Web Speech API (BCP-47 tags)
 const INDIAN_LANGUAGES = [
@@ -114,6 +114,7 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
   const taraEnabled = TARA_INTERVIEWS.has(assessmentType);
   const interviewCode = useMemo(() => new URLSearchParams(window.location.search).get('code') || '', []);
   const [taraSpeaking, setTaraSpeaking] = useState(false);
+  const [taraLine, setTaraLine] = useState(''); // what she is saying, shown under her
   const [taraEnergy, setTaraEnergy] = useState(0);
   const [nodSignal, setNodSignal] = useState(0);
   const [consented, setConsented] = useState(false);
@@ -180,7 +181,10 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
   }, [mcqQuestions, mcqIndex, tempSelectedOption, mcqAnswers, submitMcqPart]);
 
   const handleStartInterview = async () => {
-      if (taraEnabled) unlockAudio();
+      if (taraEnabled) {
+          unlockAudio();
+          prefetchLines(interviewCode, [taraGreeting(details.name, questions.length)]);
+      }
       const searchParams = new URLSearchParams(window.location.search);
       const code = searchParams.get('code');
 
@@ -286,6 +290,18 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
   }, [selectedLang]);
   useEffect(() => { startListeningRef.current = startListening; }, [startListening]);
 
+  // All her questions are fetched while the candidate fills in the details,
+  // so each plays at once (RDC, 2026-10-21).
+  useEffect(() => {
+    if (taraEnabled && interviewCode) prefetchLines(interviewCode, questions.map((q, i) => taraQuestion(i + 1, q)));
+  }, [taraEnabled, interviewCode, questions]);
+
+  // Her greeting says the candidate's name, so it cannot be made in advance:
+  // it is fetched as they move on from the name, while they fill in the rest.
+  const prefetchGreeting = () => {
+    if (taraEnabled && details.name.trim()) prefetchLines(interviewCode, [taraGreeting(details.name, questions.length)]);
+  };
+
   const stopListening = useCallback(() => {
     wantListeningRef.current = false;
     const recognition = recognitionRef.current;
@@ -306,6 +322,7 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
     stopSpeaking();
     setTaraSpeaking(false);
     setTaraEnergy(0);
+    setTaraLine('');
   }, []);
   const taraSay = useCallback((lines) => {
     stopListening();
@@ -316,10 +333,12 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
       if (rest.length === 0) {
         setTaraSpeaking(false);
         setTaraEnergy(0);
+        setTaraLine('');
         startListening(); // hands-free; on phones that need a tap, the candidate taps Record Audio
         return;
       }
       setTaraSpeaking(true);
+      setTaraLine(rest[0]);
       speakLine(rest[0], {
         code: interviewCode,
         onEnergy: setTaraEnergy,
@@ -471,7 +490,7 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
                 <div className="space-y-4">
                     <div className="relative">
                         <User className="absolute left-3 top-3 text-slate-500" size={20} />
-                        <input type="text" name="name" value={details.name} onChange={handleDetailsChange} placeholder="Candidate Name" className="w-full bg-slate-900 border border-slate-700 rounded-lg py-3 pl-10 pr-4 text-white focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500" />
+                        <input type="text" name="name" value={details.name} onChange={handleDetailsChange} onBlur={prefetchGreeting} placeholder="Candidate Name"className="w-full bg-slate-900 border border-slate-700 rounded-lg py-3 pl-10 pr-4 text-white focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500" />
                     </div>
                     
                     <div className="relative">
@@ -636,6 +655,8 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
                         energy={taraEnergy}
                         nodSignal={nodSignal}
                         canHearAgain={!taraSpeaking}
+                        caption={taraLine.replace(/Taara/g, 'TARA')}
+                        onSkip={() => { stopTara(); startListening(); }}
                         onHearAgain={() => taraSay([taraQuestion(step, questions[step - 1])])}
                     />
                 )}

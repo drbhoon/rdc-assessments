@@ -71,6 +71,38 @@ async function loudnessEnvelope(data: ArrayBuffer): Promise<Float32Array | null>
   }
 }
 
+// Lines fetched and decoded ahead: the page loads all the questions while the
+// candidate fills in the details, so each one plays at once (RDC, 2026-10-21).
+interface Clip { data: ArrayBuffer; envelope: Float32Array | null }
+const clips = new Map<string, Promise<Clip | null>>();
+
+function fetchClip(code: string, text: string): Promise<Clip | null> {
+  const known = clips.get(text);
+  if (known) return known;
+  const clip = (async () => {
+    const res = await fetch(withBase(`/api/interviews/${encodeURIComponent(code)}/tara/speak`), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    if (!res.ok) throw new Error(`voice ${res.status}`);
+    const data = await res.arrayBuffer();
+    return { data, envelope: await loudnessEnvelope(data) };
+  })().catch((error) => {
+    console.warn("TARA's voice unavailable for a line:", error);
+    clips.delete(text); // try again next time
+    return null;
+  });
+  clips.set(text, clip);
+  return clip;
+}
+
+/** Fetches these lines in the background, in order, one after another. */
+export function prefetchLines(code: string, lines: string[]): void {
+  if (!code) return;
+  void lines.reduce<Promise<unknown>>((chain, line) => chain.then(() => fetchClip(code, line)), Promise.resolve());
+}
+
 export interface LineOptions {
   code: string;
   onStart?: () => void;
@@ -134,22 +166,10 @@ export function speakLine(text: string, options: LineOptions): { stop: () => voi
   };
 
   void (async () => {
-    let data: ArrayBuffer;
-    try {
-      const res = await fetch(withBase(`/api/interviews/${encodeURIComponent(options.code)}/tara/speak`), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
-      });
-      if (!res.ok) throw new Error(`voice ${res.status}`);
-      data = await res.arrayBuffer();
-    } catch (error) {
-      console.warn("TARA's voice unavailable; using the browser voice.", error);
-      return browserVoice();
-    }
+    const clip = await fetchClip(options.code, text); // usually ready already
     if (stopped) return;
-    const envelope = await loudnessEnvelope(data);
-    if (stopped) return;
+    if (!clip) return browserVoice();
+    const { data, envelope } = clip;
     const url = URL.createObjectURL(new Blob([data], { type: "audio/mpeg" }));
     audio.onended = () => { URL.revokeObjectURL(url); end(); };
     audio.onerror = () => { URL.revokeObjectURL(url); end(); };

@@ -4,9 +4,9 @@
  * Only her own interview lines are spoken (shared/taraInterview.js), and each
  * is made once and kept: the nine questions are the same for every candidate.
  */
-import { isTaraLine } from "../shared/taraInterview.js";
+import { FRESHER_QUESTIONS, isTaraLine, taraQuestion } from "../shared/taraInterview.js";
 
-const cache = new Map(); // text -> MP3 Buffer
+const cache = new Map(); // text -> Promise of the MP3 (shared by requests that arrive together)
 const MAX_CACHED = 300;
 const recent = new Map(); // join code -> request times, a guard against misuse
 
@@ -47,32 +47,42 @@ async function openai(text) {
   return Buffer.from(await res.arrayBuffer());
 }
 
-/** MP3 of one of TARA's lines (cached). */
-export async function taraSpeech(text) {
-  if (cache.has(text)) return cache.get(text);
-  let audio = null;
+async function synthesise(text) {
   if (process.env.SARVAM_API_KEY?.trim()) {
     try {
-      audio = await sarvam(text);
+      return await sarvam(text);
     } catch (error) {
       console.error("[tara] Sarvam failed; using the OpenAI voice:", error.message);
     }
   }
-  if (!audio) {
-    if (!process.env.OPENAI_API_KEY) throw new Error("No voice is configured (SARVAM_API_KEY or OPENAI_API_KEY)");
-    audio = await openai(text);
-  }
+  if (!process.env.OPENAI_API_KEY) throw new Error("No voice is configured (SARVAM_API_KEY or OPENAI_API_KEY)");
+  return openai(text);
+}
+
+/**
+ * MP3 of one of TARA's lines. Made once: a request that arrives while the
+ * line is still being made waits for it rather than asking Sarvam again.
+ */
+export function taraSpeech(text) {
+  if (cache.has(text)) return cache.get(text);
   if (cache.size >= MAX_CACHED) cache.delete(cache.keys().next().value);
+  const audio = synthesise(text).catch((error) => {
+    cache.delete(text); // not kept: the next request tries again
+    throw error;
+  });
   cache.set(text, audio);
   return audio;
 }
 
-/** More than 40 lines in 10 minutes for one interview is not an interview. */
+/**
+ * More than 80 lines in 10 minutes for one interview is not an interview. (The
+ * page fetches all nine questions as it opens, and a candidate may reload.)
+ */
 export function tooManyRequests(code, now = Date.now()) {
   const times = (recent.get(code) || []).filter((t) => now - t < 10 * 60 * 1000);
   times.push(now);
   recent.set(code, times);
-  return times.length > 40;
+  return times.length > 80;
 }
 
 /**
@@ -96,4 +106,23 @@ export function taraSpeakRoute(lookup) {
       res.status(502).json({ error: "TARA's voice is unavailable" });
     }
   };
+}
+
+/**
+ * Makes the nine questions' audio as the server starts, so even the first
+ * candidate after a deploy does not wait for the voice (RDC, 2026-10-21:
+ * "Tara takes time to pick up questions").
+ */
+export async function warmTaraVoice() {
+  if (!process.env.SARVAM_API_KEY?.trim() && !process.env.OPENAI_API_KEY) return;
+  let made = 0;
+  for (const [i, question] of FRESHER_QUESTIONS.entries()) {
+    try {
+      await taraSpeech(taraQuestion(i + 1, question));
+      made++;
+    } catch (error) {
+      console.error("[tara] could not prepare question", i + 1, error.message);
+    }
+  }
+  console.log(`[tara] ${made} of ${FRESHER_QUESTIONS.length} questions ready to speak`);
 }

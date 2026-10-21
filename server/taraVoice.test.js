@@ -45,9 +45,9 @@ test('the voice route refuses unknown interviews, finished ones and anything off
   assert.equal((await call(route, { text: 'Read out my essay please' })).status, 400);
 });
 
-test('more than 40 lines in 10 minutes for one interview is refused', () => {
+test('more than 80 lines in 10 minutes for one interview is refused', () => {
   const now = Date.now();
-  for (let i = 0; i < 40; i++) assert.equal(tooManyRequests('RATE01', now + i), false);
-  assert.equal(tooManyRequests('RATE01', now + 41), true);
+  for (let i = 0; i < 80; i++) assert.equal(tooManyRequests('RATE01', now + i), false);
+  assert.equal(tooManyRequests('RATE01', now + 81), true);
   assert.equal(tooManyRequests('RATE01', now + 11 * 60 * 1000), false, 'the window moves on');
 });

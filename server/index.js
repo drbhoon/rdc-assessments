@@ -8,7 +8,7 @@ import XLSX from 'xlsx';
 import { evaluateReport } from './aiService.js';
 import { mountReportRoutes } from './reports/routes.js';
 import { startScheduler } from './reports/engine.js';
-import { taraSpeakRoute } from './taraVoice.js';
+import { taraSpeakRoute, warmTaraVoice } from './taraVoice.js';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 dotenv.config();
@@ -596,4 +596,5 @@ app.get('/health', (req, res) => res.json({ status: 'ok' }));
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
+    void warmTaraVoice(); // TARA's interview questions, ready before the first candidate
 });
