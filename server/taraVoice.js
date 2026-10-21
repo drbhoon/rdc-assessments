@@ -4,7 +4,7 @@
  * Only her own interview lines are spoken (shared/taraInterview.js), and each
  * is made once and kept: the nine questions are the same for every candidate.
  */
-import { FRESHER_QUESTIONS, isTaraLine, taraQuestion } from "../shared/taraInterview.js";
+import { TARA_FIXED_LINES, isTaraLine } from "../shared/taraInterview.js";
 
 const cache = new Map(); // text -> Promise of the MP3 (shared by requests that arrive together)
 const MAX_CACHED = 300;
@@ -75,14 +75,14 @@ export function taraSpeech(text) {
 }
 
 /**
- * More than 80 lines in 10 minutes for one interview is not an interview. (The
- * page fetches all nine questions as it opens, and a candidate may reload.)
+ * More than 150 lines in 10 minutes for one interview is not an interview.
+ * (The page fetches her ~20 fixed lines as it opens, and a candidate may reload.)
  */
 export function tooManyRequests(code, now = Date.now()) {
   const times = (recent.get(code) || []).filter((t) => now - t < 10 * 60 * 1000);
   times.push(now);
   recent.set(code, times);
-  return times.length > 80;
+  return times.length > 150;
 }
 
 /**
@@ -109,20 +109,21 @@ export function taraSpeakRoute(lookup) {
 }
 
 /**
- * Makes the nine questions' audio as the server starts, so even the first
- * candidate after a deploy does not wait for the voice (RDC, 2026-10-21:
- * "Tara takes time to pick up questions").
+ * Makes the audio of every line that is the same for all candidates — the
+ * questions, her short replies, the closing and goodbye — as the server
+ * starts, so even the first candidate after a deploy does not wait for the
+ * voice (RDC, 2026-10-21: "Tara takes time to pick up questions").
  */
 export async function warmTaraVoice() {
   if (!process.env.SARVAM_API_KEY?.trim() && !process.env.OPENAI_API_KEY) return;
   let made = 0;
-  for (const [i, question] of FRESHER_QUESTIONS.entries()) {
+  for (const line of TARA_FIXED_LINES) {
     try {
-      await taraSpeech(taraQuestion(i + 1, question));
+      await taraSpeech(line);
       made++;
     } catch (error) {
-      console.error("[tara] could not prepare question", i + 1, error.message);
+      console.error("[tara] could not prepare:", line.slice(0, 40), error.message);
     }
   }
-  console.log(`[tara] ${made} of ${FRESHER_QUESTIONS.length} questions ready to speak`);
+  console.log(`[tara] ${made} of ${TARA_FIXED_LINES.length} lines ready to speak`);
 }

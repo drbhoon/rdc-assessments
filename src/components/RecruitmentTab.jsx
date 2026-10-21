@@ -3,7 +3,7 @@ import { Mic, MicOff, ChevronRight, ChevronLeft, CheckCircle2, User, GraduationC
 import { kaushalTechQuestions } from '../data/kaushalTechQuestions';
 import { kaushalBatchingQuestions } from '../data/kaushalBatchingQuestions';
 import { withBase } from '../basePath';
-import { FRESHER_QUESTIONS, TARA_INTERVIEWS, taraGreeting, taraQuestion } from '../../shared/taraInterview.js';
+import { CANDIDATE_QUESTIONS_HEADING, FRESHER_QUESTIONS, TARA_CLOSING, TARA_FIXED_LINES, TARA_GOODBYE, TARA_INTERVIEWS, TARA_MOVE_ON, pickAcknowledgement, taraGreeting, taraQuestion } from '../../shared/taraInterview.js';
 import TaraPanel from '../tara/TaraPanel';
 import { prefetchLines, speakLine, stopSpeaking, unlockAudio } from '../tara/voice';
 
@@ -98,7 +98,8 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
 
   const [details, setDetails] = useState({ name: '', qualification: '', dob: '', hometown: '' });
   const [selectedLang, setSelectedLang] = useState('en-IN'); // BCP-47 tag for speech recognition
-  const [answers, setAnswers] = useState(Array(questions.length).fill(''));
+  // One slot per question, and one more for the candidate's own questions at the end (TARA).
+  const [answers, setAnswers] = useState(Array(questions.length + 1).fill(''));
   const [interimTranscript, setInterimTranscript] = useState('');
   
   const [isListening, setIsListening] = useState(false);
@@ -119,6 +120,12 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
   const [nodSignal, setNodSignal] = useState(0);
   const [consented, setConsented] = useState(false);
   const spokenStepsRef = useRef(new Set());
+  // Her short reply to the answer just given, said before the next line, and the last one used.
+  const pendingReplyRef = useRef('');
+  const lastReplyRef = useRef('');
+  const [finishing, setFinishing] = useState(false);
+  // After the last question she gives the closing and listens for the candidate's questions.
+  const closingStep = questions.length + 1;
   const speechRunRef = useRef(0);
   const lastNodRef = useRef(0);
 
@@ -293,7 +300,7 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
   // All her questions are fetched while the candidate fills in the details,
   // so each plays at once (RDC, 2026-10-21).
   useEffect(() => {
-    if (taraEnabled && interviewCode) prefetchLines(interviewCode, questions.map((q, i) => taraQuestion(i + 1, q)));
+    if (taraEnabled && interviewCode) prefetchLines(interviewCode, TARA_FIXED_LINES);
   }, [taraEnabled, interviewCode, questions]);
 
   // Her greeting says the candidate's name, so it cannot be made in advance:
@@ -379,12 +386,38 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
       stopListening(); // stop listening before moving
       stopTara();
       setInterimTranscript('');
+      if (taraEnabled) {
+          // A short, neutral reply to the answer before her next line.
+          const answered = (answers[step - 1] || '').trim();
+          const reply = answered ? pickAcknowledgement(lastReplyRef.current) : TARA_MOVE_ON;
+          if (answered) lastReplyRef.current = reply;
+          pendingReplyRef.current = reply;
+      }
       const newStep = step + 1;
       setStep(newStep);
-      // Final Submission
-      if (newStep > questions.length) {
+      // Final Submission (with TARA, after her closing and the candidate's questions)
+      if (newStep > questions.length && !taraEnabled) {
           compileAndSubmit();
       }
+  };
+
+  // The candidate finishes: her goodbye, then the interview is submitted.
+  const handleFinish = () => {
+      if (finishing) return;
+      setFinishing(true);
+      stopListening();
+      stopTara();
+      setTaraSpeaking(true);
+      setTaraLine(TARA_GOODBYE);
+      speakLine(TARA_GOODBYE, {
+          code: interviewCode,
+          onEnergy: setTaraEnergy,
+          onEnd: () => {
+              setTaraSpeaking(false);
+              setTaraLine('');
+              compileAndSubmit();
+          },
+      });
   };
   
   const handleBack = () => {
@@ -407,6 +440,10 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
           reportString += `\n--- Q${idx + 1}: ${q} ---\n`;
           reportString += `Candidate Answer: ${answers[idx] || "No answer provided."}\n`;
       });
+
+      if (taraEnabled) {
+          reportString += `\n\n${CANDIDATE_QUESTIONS_HEADING}:\n${(answers[questions.length] || '').trim() || 'None.'}\n`;
+      }
 
       onSubmit(reportString, assessmentType);
   };
@@ -442,13 +479,15 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
   // TARA reads each question the first time the candidate reaches it (the
   // greeting before the first); "Hear again" repeats it.
   useEffect(() => {
-    if (!taraEnabled || part !== 'oral' || step < 1 || step > questions.length) return;
+    if (!taraEnabled || part !== 'oral' || step < 1 || step > closingStep) return;
     if (spokenStepsRef.current.has(step)) return;
     spokenStepsRef.current.add(step);
-    const lines = [taraQuestion(step, questions[step - 1])];
+    const lines = [step === closingStep ? TARA_CLOSING : taraQuestion(step, questions[step - 1])];
     if (step === 1) lines.unshift(taraGreeting(details.name, questions.length));
+    if (pendingReplyRef.current) lines.unshift(pendingReplyRef.current);
+    pendingReplyRef.current = '';
     taraSay(lines);
-  }, [taraEnabled, part, step, questions, details.name, taraSay]);
+  }, [taraEnabled, part, step, closingStep, questions, details.name, taraSay]);
 
   // Leaving the page: no voice or microphone left running.
   useEffect(() => () => { stopSpeaking(); wantListeningRef.current = false; recognitionRef.current?.stop?.(); }, []);
@@ -721,11 +760,63 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
                         onClick={handleNext}
                         className="flex items-center gap-2 bg-brand-600 hover:bg-brand-500 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg shadow-brand-500/20 active:scale-95"
                     >
-                        {step === questions.length ? (
+                        {step === questions.length && !taraEnabled ? (
                             <>Submit Interview <Send size={20}/></>
                         ) : (
                             <>Next Question <ChevronRight size={20}/></>
                         )}
+                    </button>
+                </div>
+            </div>
+        )}
+
+        {/* AFTER THE LAST QUESTION: TARA's closing and the candidate's own questions */}
+        {!loadingMcq && part === 'oral' && taraEnabled && step === closingStep && (
+            <div className="animate-in fade-in slide-in-from-right-4 duration-300 flex flex-col h-full">
+                <TaraPanel
+                    mode={taraSpeaking ? 'speaking' : isListening ? 'listening' : 'idle'}
+                    energy={taraEnergy}
+                    nodSignal={nodSignal}
+                    canHearAgain={!taraSpeaking && !finishing}
+                    caption={taraLine.replace(/Taara/g, 'TARA')}
+                    onSkip={() => { if (finishing) return; stopTara(); startListening(); }}
+                    onHearAgain={() => taraSay([TARA_CLOSING])}
+                    hearAgainLabel="Hear that again"
+                />
+                <div className="mb-2 text-brand-400 font-semibold tracking-wider text-sm uppercase">All questions answered</div>
+                <h2 className="text-xl md:text-2xl font-bold text-white leading-relaxed mb-2">Do you have any questions for RDC?</h2>
+                <p className="text-slate-400 text-sm mb-6">Optional. Speak or type them here; TARA will record them and share them with the RDC team. They are not part of your assessment.</p>
+
+                <div className="relative flex-1 min-h-[180px] mb-6">
+                    <textarea
+                        className="w-full h-full min-h-[180px] bg-slate-900/50 border border-slate-700/50 rounded-xl p-4 md:p-6 pb-16 text-white text-lg leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-brand-500/50 transition-all font-sans placeholder-slate-600"
+                        placeholder={isListening ? "Listening..." : "Your questions for RDC, if any..."}
+                        value={answers[questions.length] || ''}
+                        onChange={(e) => updateAnswer(closingStep, e.target.value)}
+                        onPaste={preventPaste}
+                    />
+                    {interimTranscript && (
+                        <div className="absolute inset-x-4 bottom-20 p-3 bg-brand-500/10 border border-brand-500/30 rounded-lg backdrop-blur-sm pointer-events-none">
+                            <p className="text-brand-300 italic text-sm animate-pulse">{interimTranscript}...</p>
+                        </div>
+                    )}
+                    <button
+                        onClick={toggleListen}
+                        disabled={finishing}
+                        className={`absolute bottom-4 right-4 flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all shadow-lg
+                                   ${isListening ? 'bg-red-500/20 text-red-400 border border-red-500/50 hover:bg-red-500/30' : 'bg-slate-800 text-slate-300 border border-slate-600 hover:bg-slate-700'}`}
+                    >
+                        {isListening ? (<><MicOff size={18} className="animate-pulse" /> Stop Recording</>) : (<><Mic size={18} /> Record Audio</>)}
+                    </button>
+                </div>
+
+                <div className="mt-4 flex justify-end">
+                    <button
+                        onClick={handleFinish}
+                        disabled={finishing}
+                        className="flex items-center gap-2 bg-brand-600 hover:bg-brand-500 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg shadow-brand-500/20 active:scale-95 disabled:opacity-60"
+                    >
+                        {finishing ? <><Loader2 size={20} className="animate-spin" /> Finishing...</> : <>Finish Interview <Send size={20}/></>}
                     </button>
                 </div>
             </div>

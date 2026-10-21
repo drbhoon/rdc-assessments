@@ -20,7 +20,7 @@ const MOVE = '650ms cubic-bezier(0.22, 1, 0.36, 1)';
  * flickers or reloads; her corner is an empty spot in the layout that the
  * picture follows, even as the page scrolls.
  */
-export default function TaraPanel({ mode, energy, nodSignal, onHearAgain, canHearAgain, caption, onSkip }) {
+export default function TaraPanel({ mode, energy, nodSignal, onHearAgain, canHearAgain, caption, onSkip, hearAgainLabel = 'Hear the question again' }) {
   const [live, setLive] = useState(false);
   const spotRef = useRef(null);
   const [spot, setSpot] = useState(null);
@@ -102,7 +102,7 @@ export default function TaraPanel({ mode, energy, nodSignal, onHearAgain, canHea
             onClick={onHearAgain}
             className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-brand-300 hover:text-brand-200"
           >
-            <Volume2 size={14} /> Hear the question again
+            <Volume2 size={14} /> {hearAgainLabel}
           </button>
         )}
       </div>

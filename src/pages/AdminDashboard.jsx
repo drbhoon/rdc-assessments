@@ -6,6 +6,7 @@ import { jsPDF } from 'jspdf'
 import { BASE, withBase } from '../basePath'
 import { CONSOLES, typesFor } from '../consoles'
 import ReportCycles from './reports/ReportCycles'
+import { candidateQuestionsFrom } from '../../shared/taraInterview.js'
 
 // consoleKey decides which assessment types this console owns — employee
 // assessments on /admin, external recruitment on /admin/recruitment. Everything
@@ -149,6 +150,19 @@ function AdminDashboard({ consoleKey = 'assessment' }) {
     }
   }
 
+  // The candidate's own questions to RDC, asked at the end of a TARA interview:
+  // shown to HR under the report (not scored).
+  const candidateQuestionsHtml = (rawTranscript) => {
+      const asked = candidateQuestionsFrom(rawTranscript);
+      if (!asked) return '';
+      const escaped = asked.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return `<div style="margin-top: 24px; padding: 16px 20px; border: 1px solid #FFE0B2; background: #FFF8E1; border-radius: 10px; font-family: sans-serif;">
+          <h3 style="margin: 0 0 8px; color: #E65100; font-size: 16px;">Candidate's questions for RDC</h3>
+          <p style="margin: 0 0 8px; color: #6D4C41; font-size: 12px;">Asked at the end of the interview with TARA. Not part of the assessment; please reply to the candidate.</p>
+          <p style="margin: 0; color: #212121; font-size: 14px; white-space: pre-wrap;">${escaped}</p>
+      </div>`;
+  };
+
   const generatePartAHtml = (partA) => {
       if (!partA || !partA.questions || partA.questions.length === 0) return '';
 
@@ -266,6 +280,7 @@ function AdminDashboard({ consoleKey = 'assessment' }) {
               const partAHtml = generatePartAHtml(interview.transcript_answers.part_a);
               finalReportHtml = partAHtml + cleanReport;
           }
+          finalReportHtml += candidateQuestionsHtml(rawText);
           setEvaluationResult(finalReportHtml);
           setAppState('results');
       } else {
@@ -359,6 +374,7 @@ function AdminDashboard({ consoleKey = 'assessment' }) {
           const partAHtml = generatePartAHtml(currentInterview.transcript_answers.part_a);
           finalReportHtml = partAHtml + result;
       }
+      finalReportHtml += candidateQuestionsHtml(currentInterview?.transcript_answers?.part_b?.raw || currentInterview?.transcript_answers?.raw || reportText);
 
       const cleanedResult = finalReportHtml.replace(/<h1[^>]*>.*?<\/h1>/i, `<h1 style="margin: 0; color: #2E7D32;">${getCorrectHeading(typeToEvaluate)}</h1>`);
 
