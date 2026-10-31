@@ -64,7 +64,7 @@ const KAUSHAL_ALL_QUESTIONS = [
 // Helper: shuffle array and pick N items
 const pickRandom = (arr, n) => [...arr].sort(() => 0.5 - Math.random()).slice(0, n);
 
-export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment' }) {
+export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment', candidateName = '' }) {
   const questions = useMemo(() => {
     if (assessmentType === 'sales_recruitment') return SALES_QUESTIONS;
     if (assessmentType === 'kaushal_mm') {
@@ -96,7 +96,7 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
   const [tempSelectedOption, setTempSelectedOption] = useState('');
   const [loadingMcq, setLoadingMcq] = useState(false);
 
-  const [details, setDetails] = useState({ name: '', qualification: '', dob: '', hometown: '' });
+  const [details, setDetails] = useState({ name: candidateName, qualification: '', dob: '', hometown: '' });
   const [selectedLang, setSelectedLang] = useState('en-IN'); // BCP-47 tag for speech recognition
   // One slot per question, and one more for the candidate's own questions at the end (TARA).
   const [answers, setAnswers] = useState(Array(questions.length + 1).fill(''));

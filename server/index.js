@@ -8,6 +8,7 @@ import XLSX from 'xlsx';
 import { evaluateReport } from './aiService.js';
 import { mountReportRoutes } from './reports/routes.js';
 import { startScheduler } from './reports/engine.js';
+import { forCandidate, mountRecruitmentService, onSubmitted, startRecruitmentTick } from './recruitment/service.js';
 import { taraSpeakRoute, warmTaraVoice } from './taraVoice.js';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
@@ -202,11 +203,11 @@ router.get('/api/interviews/:code', async (req, res) => {
         if (pool) {
             const result = await pool.query('SELECT * FROM interviews WHERE join_code = $1', [code]);
             if (result.rows.length === 0) return res.status(404).json({ error: "Invalid Join Code" });
-            res.json(result.rows[0]);
+            res.json(forCandidate(result.rows[0]));
         } else {
             const record = memoryDb.get(code);
             if (!record) return res.status(404).json({ error: "Invalid Join Code" });
-            res.json(record);
+            res.json(forCandidate(record));
         }
     } catch (error) {
         res.status(500).json({ error: "Server error fetching interview" });
@@ -250,7 +251,8 @@ router.put('/api/interviews/:code', async (req, res) => {
                 'UPDATE interviews SET candidate_details = $1, transcript_answers = $2, status = $3 WHERE join_code = $4 RETURNING *',
                 [JSON.stringify(candidate_details), JSON.stringify(finalAnswers), 'completed', code]
             );
-            res.json(result.rows[0]);
+            res.json(forCandidate(result.rows[0]));
+            onSubmitted(pool, code);
         } else {
             const record = memoryDb.get(code);
             if (!record) return res.status(404).json({ error: "Invalid Join Code" });
@@ -274,6 +276,20 @@ router.put('/api/interviews/:code', async (req, res) => {
     } catch (error) {
         console.error("Submit Interview Error:", error);
         res.status(500).json({ error: "Server error submitting interview" });
+    }
+});
+
+// 4.4. One record, opened from the report link in the Recruitment Tracker.
+adminRouter.get('/interviews/:code', async (req, res) => {
+    const code = req.params.code.toUpperCase();
+    try {
+        const record = pool
+            ? (await pool.query('SELECT * FROM interviews WHERE join_code = $1', [code])).rows[0]
+            : memoryDb.get(code);
+        if (!record) return res.status(404).json({ error: "Invalid Join Code" });
+        res.json(record);
+    } catch (error) {
+        res.status(500).json({ error: "Server error fetching interview" });
     }
 });
 
@@ -576,6 +592,10 @@ adminRouter.post('/evaluate', async (req, res) => {
 // admin router, the trainee and supervisor links on the open one.
 const reports = mountReportRoutes({ router, adminRouter, pool });
 if (pool) startScheduler(pool, reports.ready);
+
+// Fresher and Sales interviews started from the Recruitment Tracker.
+const recruitment = mountRecruitmentService({ router, pool, generateCode });
+if (pool) startRecruitmentTick(pool, recruitment.ready);
 
 router.use('/api/admin', adminRouter);
 

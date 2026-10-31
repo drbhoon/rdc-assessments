@@ -12,7 +12,7 @@ import { candidateQuestionsFrom } from '../../shared/taraInterview.js'
 // assessments on /admin, external recruitment on /admin/recruitment. Everything
 // that differs between the two lives in src/consoles.js, so adding a
 // recruitment track later is a line of config rather than an edit in here.
-function AdminDashboard({ consoleKey = 'assessment' }) {
+function AdminDashboard({ consoleKey = 'assessment', reportCode = null }) {
   const consoleConfig = CONSOLES[consoleKey] || CONSOLES.assessment
   const consoleTypes = typesFor(consoleKey)
   const [appState, setAppState] = useState('upload') // upload, parsing, ready_for_api, api, results
@@ -287,6 +287,24 @@ function AdminDashboard({ consoleKey = 'assessment' }) {
           setAppState('ready_for_api');
       }
   }
+
+  // Opened from the Recruitment Tracker: go straight to this candidate's report.
+  useEffect(() => {
+    if (!reportCode || !isAuthenticated) return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(withBase(`/api/admin/interviews/${encodeURIComponent(reportCode)}`));
+        if (!res.ok) throw new Error('This report was not found.');
+        const interview = await res.json();
+        if (!cancelled) loadSubmission(interview);
+      } catch (err) {
+        if (!cancelled) alert(err.message);
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once for this link
+  }, [reportCode, isAuthenticated]);
 
   const generatePDF = async () => {
     setIsGeneratingPdf(true);

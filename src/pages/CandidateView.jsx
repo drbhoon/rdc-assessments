@@ -149,6 +149,7 @@ export default function CandidateView() {
             <main className="max-w-4xl mx-auto p-4 md:p-8 w-full">
                  <RecruitmentTab 
                     assessmentType={interviewData.assessment_type}
+                    candidateName={interviewData.candidate_name || ''}
                     onSubmit={submitInterview} 
                  />
             </main>
