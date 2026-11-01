@@ -128,6 +128,7 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
   const closingStep = questions.length + 1;
   const speechRunRef = useRef(0);
   const lastNodRef = useRef(0);
+  const lastFinalRef = useRef('');
 
   const [timeLeft, setTimeLeft] = useState(1200); // 20 minutes
 
