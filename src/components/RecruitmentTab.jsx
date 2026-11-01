@@ -242,19 +242,36 @@ export default function RecruitmentTab({ onSubmit, assessmentType = 'recruitment
     recognition.continuous = true;
     recognition.interimResults = true; // real-time text reduces lag
     recognition.lang = selectedLang; // the candidate's chosen language
+    lastFinalRef.current = '';
     recognition.onresult = (event) => {
-      let finalText = '';
+      const finals = [];
       let interimText = '';
       for (let i = event.resultIndex; i < event.results.length; i++) {
-        if (event.results[i].isFinal) finalText += event.results[i][0].transcript + ' ';
+        if (event.results[i].isFinal) finals.push(event.results[i][0].transcript.trim());
         else interimText += event.results[i][0].transcript;
       }
       setInterimTranscript(interimText);
-      if (finalText) {
+      if (finals.length) {
+        // Android Chrome sends a growing sentence as a series of final results
+        // ("I", "I have", "I have a"): each replaces the one it grew from, or
+        // the transcript the AI scores reads "I I have I have a".
+        const steps = [];
+        for (const text of finals) {
+          const last = lastFinalRef.current;
+          const [t, l] = [text.toLowerCase(), last.toLowerCase()];
+          if (last && l.startsWith(t + ' ')) continue;
+          steps.push({ text, drop: last && (t === l || t.startsWith(l + ' ')) ? last : '' });
+          lastFinalRef.current = text;
+        }
         setAnswers(prev => {
           const newAnswers = [...prev];
           if (qIndex >= 0 && qIndex < newAnswers.length) {
-            newAnswers[qIndex] = ((newAnswers[qIndex] || '') + ' ' + finalText).trim();
+            let answer = newAnswers[qIndex] || '';
+            for (const { text, drop } of steps) {
+              if (drop && answer.endsWith(drop)) answer = answer.slice(0, -drop.length);
+              answer = (answer.trim() + ' ' + text).trim();
+            }
+            newAnswers[qIndex] = answer;
           }
           return newAnswers;
         });
